@@ -74,7 +74,7 @@ class QemuArm64Options(object):
     def drive_args(self, image, index):
         """Generates arguments for mapping a drive"""
         index_letter = chr(ord('a') + index)
-        image_dir = "%s/out/target/product/trusty" % self.config.android
+        image_dir = "%s/target/product/trusty" % self.config.android
         return [
             "-drive",
             "file=%s/%s.img,index=%d,if=none,id=hd%s,format=raw,snapshot=on" %
@@ -108,4 +108,4 @@ class QemuArm64Options(object):
         ]
 
     def android_trusty_user_data(self):
-        return "%s/out/target/product/trusty/data" % self.config.android
+        return "%s/target/product/trusty/data" % self.config.android

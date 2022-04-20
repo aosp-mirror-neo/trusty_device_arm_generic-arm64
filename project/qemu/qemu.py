@@ -23,6 +23,16 @@ from qemu_error import AdbFailure, ConfigError, RunnerGenericError, RunnerError,
 ADB_BASE_PORT = 5554
 
 
+def find_android_build_dir(android):
+    if os.path.exists('%s/target/product/trusty' % android):
+        return android
+    elif os.path.exists('%s/out/target/product/trusty' % android):
+        return '%s/out' % android
+    else:
+        print('%s not an Android source or build directory' % android)
+        sys.exit(1)
+
+
 class Config(object):
     """Stores a QEMU configuration for use with the runner
 
@@ -54,7 +64,7 @@ class Config(object):
             config_dict = json.load(config)
 
         script_dir = os.path.dirname(os.path.realpath(__file__))
-        self.android = os.path.join(script_dir, config_dict.get("android"))
+        self.android = find_android_build_dir(os.path.join(script_dir, config_dict.get("android")))
         self.linux = os.path.join(script_dir, config_dict.get("linux"))
         self.linux_arch = config_dict.get("linux_arch")
         self.atf = os.path.join(script_dir, config_dict.get("atf"))
@@ -520,7 +530,7 @@ c
 
     def adb_bin(self):
         """Returns location of adb"""
-        return "%s/out/host/linux-x86/bin/adb" % self.config.android
+        return "%s/host/linux-x86/bin/adb" % self.config.android
 
     def adb(self, args, timeout=60, on_timeout=None, force_output=False):
         """Runs an adb command
@@ -900,7 +910,7 @@ def main():
 
     config = Config(args.config)
     if args.android:
-        config.android = args.android
+        config.android = find_android_build_dir(args.android)
     if args.linux:
         config.linux = args.linux
     if args.atf:
