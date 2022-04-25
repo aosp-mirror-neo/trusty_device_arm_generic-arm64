@@ -23,7 +23,9 @@ include trusty/user/base/usertests-inc.mk
 # and intentionally attempts to induce crashes for bad assumptions.
 GLOBAL_SHARED_COMPILEFLAGS += -ftrivial-auto-var-init=pattern
 
+WITH_HWCRYPTO_UNITTEST := 1
+
 # Enable hwcrypto unittest keyslots and tests
-GLOBAL_USER_COMPILEFLAGS += -DWITH_HWCRYPTO_UNITTEST=1
+GLOBAL_USER_COMPILEFLAGS += -DWITH_HWCRYPTO_UNITTEST=$(WITH_HWCRYPTO_UNITTEST)
 
 TEST_BUILD := true
