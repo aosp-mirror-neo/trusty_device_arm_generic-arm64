@@ -18,7 +18,7 @@ class QemuArm64Options(object):
     LINUX_ARGS = (
         "earlyprintk console=ttyAMA0,38400 keep_bootcon "
         "root=/dev/vda ro init=/init androidboot.hardware=qemu_trusty "
-        "trusty-log.log_ratelimit_interval=0")
+        "trusty-log.log_ratelimit_interval=0 trusty-log.log_to_dmesg=always")
 
     def __init__(self, config):
         self.args = []
