@@ -58,6 +58,7 @@ QEMU_AOSP_DISABLES := \
             --disable-vde \
             --disable-vhdx \
             --disable-vhost-net \
+            --disable-opengl \
 
 $(QEMU_MAKEFILE): QEMU_ROOT:=$(QEMU_ROOT)
 $(QEMU_MAKEFILE): QEMU_BUILD_BASE:=$(QEMU_BUILD_BASE)
