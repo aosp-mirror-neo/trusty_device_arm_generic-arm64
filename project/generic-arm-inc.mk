@@ -155,6 +155,7 @@ MODULES += \
 	trusty/kernel/lib/metrics \
 	trusty/kernel/services/apploader \
 	trusty/kernel/services/smc \
+	trusty/kernel/services/hwrng \
 
 # Add lib/sm by default but allow building without it
 LIB_SM_ENABLED ?= true
