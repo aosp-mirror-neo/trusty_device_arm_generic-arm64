@@ -162,9 +162,14 @@ EXTRA_BUILDDEPS += $(PY3_CMD)
 # Copy Android prebuilts into the build directory so that the build does not
 # depend on any files in the source tree. We want to package the build artifacts
 # without any dependencies on the sources.
+# Because files in the prebuilts directory are not writeable the directory must
+# be cleared before copying in the fresh content. `rm -rf` is used to accomplish
+# this because it bypasses writing un-writeable files in addition to bringing
+# the target directory to the same state as with a clean build.
 ANDROID_PREBUILT := $(BUILDDIR)/aosp/android
 $(ANDROID_PREBUILT): trusty/prebuilts/aosp/android
 	@echo copying Android prebuilts
+	@rm -rf $@
 	@$(MKDIR)
 	@cp -r $< $@
 
