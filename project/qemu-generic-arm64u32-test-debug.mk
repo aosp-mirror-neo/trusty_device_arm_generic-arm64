@@ -24,4 +24,5 @@ QEMU_TRUSTY_PROJECT := generic-arm64-test-debug
 # skip the version check entirely.
 STATIC_SYSTEM_STATE_FLAG_APP_LOADING_VERSION_CHECK := 2
 
+include project/debugging-inc.mk
 include project/qemu-inc.mk

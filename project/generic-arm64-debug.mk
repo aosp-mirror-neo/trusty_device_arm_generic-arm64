@@ -17,4 +17,5 @@ KERNEL_32BIT := false
 DEBUG := 2
 RELEASE_BUILD := false
 
+include project/debugging-inc.mk
 include project/generic-arm-inc.mk

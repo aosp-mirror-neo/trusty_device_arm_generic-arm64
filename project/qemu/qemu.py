@@ -63,13 +63,15 @@ class Config(object):
         if config:
             config_dict = json.load(config)
 
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        self.android = find_android_build_dir(os.path.join(script_dir, config_dict.get("android")))
-        self.linux = os.path.join(script_dir, config_dict.get("linux"))
+        self.script_dir = os.path.dirname(os.path.realpath(__file__))
+        self.android = find_android_build_dir(
+            os.path.join(self.script_dir, config_dict.get("android"))
+        )
+        self.linux = os.path.join(self.script_dir, config_dict.get("linux"))
         self.linux_arch = config_dict.get("linux_arch")
-        self.atf = os.path.join(script_dir, config_dict.get("atf"))
-        self.qemu = os.path.join(script_dir, config_dict.get("qemu", "qemu-system-aarch64"))
-        self.rpmbd = os.path.join(script_dir, config_dict.get("rpmbd"))
+        self.atf = os.path.join(self.script_dir, config_dict.get("atf"))
+        self.qemu = os.path.join(self.script_dir, config_dict.get("qemu", "qemu-system-aarch64"))
+        self.rpmbd = os.path.join(self.script_dir, config_dict.get("rpmbd"))
         self.arch = config_dict.get("arch")
         self.extra_qemu_flags = config_dict.get("extra_qemu_flags", [])
 
@@ -806,7 +808,10 @@ c
             self.msg_channel_wait_for_connection()
 
             if self.debug:
-                print("Run gdb and \"target remote :1234\" to debug")
+                if self.config.script_dir.endswith("/build-qemu-generic-arm64-test-debug"):
+                    print(f"Debug with: lldb --source {self.config.script_dir}/lldbinit")
+                else:
+                    print("Debug with: lldb --one-line 'gdb-remote 1234'")
 
             try:
                 # Send request to boot secondary OS

@@ -96,6 +96,8 @@ QEMU_CONFIG := $(BUILDDIR)/config.json
 QEMU_PY := $(BUILDDIR)/qemu.py
 QEMU_ERROR_PY := $(BUILDDIR)/qemu_error.py
 QEMU_OPTIONS_PY := $(BUILDDIR)/qemu_options.py
+QEMU_LLDB_SUPPORT_PY := $(BUILDDIR)/lldb_support.py
+QEMU_LLDBINIT := $(BUILDDIR)/lldbinit
 PY3_CMD := $(BUILDDIR)/py3-cmd
 
 $(ATF_OUT_DIR):
@@ -128,7 +130,9 @@ $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
 QEMU_SCRIPTS := \
 	$(QEMU_PY) \
 	$(QEMU_ERROR_PY) \
-	$(QEMU_OPTIONS_PY)
+	$(QEMU_OPTIONS_PY) \
+	$(QEMU_LLDB_SUPPORT_PY) \
+	$(QEMU_LLDBINIT)
 
 $(QEMU_SCRIPTS): .PHONY
 EXTRA_BUILDDEPS += $(QEMU_SCRIPTS)
@@ -146,6 +150,16 @@ $(QEMU_ERROR_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/qemu_error.py
 # Script used to generate qemu architecture options. Need to specify qemu
 # options file name since different projects use different python script
 $(QEMU_OPTIONS_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/qemu_arm64_options.py
+	@echo copying $@
+	@cp $< $@
+
+# Script used in LLDB for setting breakpoints adjusted for KASLR and ASLR
+$(QEMU_LLDB_SUPPORT_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/lldb_support.py
+	@echo copying $@
+	@cp $< $@
+
+# Companion script to lldb_support.py that contains LLDB commands
+$(QEMU_LLDBINIT): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/lldbinit
 	@echo copying $@
 	@cp $< $@
 
@@ -270,6 +284,8 @@ QEMU_BUILD_BASE :=
 QEMU_CONFIG :=
 QEMU_ERROR_PY :=
 QEMU_OPTIONS_PY :=
+QEMU_LLDB_SUPPORT_PY :=
+QEMU_LLDBINIT :=
 QEMU_PY :=
 QEMU_SCRIPTS :=
 PY3_CMD :=

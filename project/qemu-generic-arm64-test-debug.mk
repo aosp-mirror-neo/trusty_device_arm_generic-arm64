@@ -14,4 +14,6 @@
 #
 
 QEMU_TRUSTY_PROJECT := generic-arm64-test-debug
+
+include project/debugging-inc.mk
 include project/qemu-inc.mk

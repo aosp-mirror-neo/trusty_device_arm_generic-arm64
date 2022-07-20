@@ -13,7 +13,4 @@
 # limitations under the License.
 #
 
-KERNEL_32BIT := true
-DEBUG := 2
-
-include project/generic-arm-test-inc.mk
+include project/generic-arm32-test-debug-inc.mk

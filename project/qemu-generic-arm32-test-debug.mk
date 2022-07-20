@@ -21,4 +21,5 @@ LINUX_ARCH := arm64
 # key 1 disabled). See qemu-inc.mk for more details on app loading locking
 STATIC_SYSTEM_STATE_FLAG_APP_LOADING_UNLOCKED := 0
 
+include project/debugging-inc.mk
 include project/qemu-inc.mk
