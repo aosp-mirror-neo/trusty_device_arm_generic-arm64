@@ -557,35 +557,12 @@ c
             [self.adb_bin()] + args, stdin=self.stdin, stdout=stdout,
             stderr=stderr)
 
-        # This code simulates the timeout= parameter due to no python 3
-
-        def kill_adb():
-            """Kills the running adb"""
-            # Technically this races with wait - it is possible, though
-            # unlikely, to get a spurious timeout message and kill
-            # if .wait() returns, this function is triggered, and then
-            # .cancel() runs
+        try:
+            return adb_proc.wait(timeout)
+        except subprocess.TimeoutExpired:
             print("Timed out (%d s)" % timeout)
             if on_timeout:
                 on_timeout()
-
-            try:
-                adb_proc.kill()
-            except OSError:
-                pass
-
-        if not self.debug:
-            kill_timer = threading.Timer(timeout, kill_adb)
-            kill_timer.start()
-        # Add finally here so that the python interpreter will exit quickly
-        # in the event of an exception rather than waiting for the timer
-        try:
-            exit_code = adb_proc.wait()
-            return exit_code
-        finally:
-            if not self.debug:
-                kill_timer.cancel()
-                kill_timer.join()
 
     def check_adb(self, args, **kwargs):
         """As .adb(), but throws an exception if the command fails"""
