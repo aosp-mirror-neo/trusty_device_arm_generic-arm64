@@ -900,7 +900,7 @@ c
         return test_results
 
 
-def main():
+def build_argparser():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("-c", "--config", type=argparse.FileType('r'))
     argument_parser.add_argument("--headless", action="store_true")
@@ -917,7 +917,11 @@ def main():
     argument_parser.add_argument("--disable-rpmb", action="store_true")
     argument_parser.add_argument("--timeout", type=int)
     argument_parser.add_argument("extra_qemu_flags", nargs="*")
-    args = argument_parser.parse_args()
+    return argument_parser
+
+
+def main():
+    args = build_argparser().parse_args()
 
     config = Config(args.config)
     if args.android:
