@@ -213,7 +213,7 @@ def qemu_handle_error(command_pipe, debug_on_error):
         command_pipe.monitor_command("gdbserver")
         print("Connect gdb, press enter when done ")
         select.select([sys.stdin], [], [])
-        raw_input("\n")
+        input("\n")
 
 
 def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
