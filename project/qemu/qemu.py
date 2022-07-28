@@ -560,11 +560,20 @@ c
             stderr=stderr)
 
         try:
-            return adb_proc.wait(timeout)
+            status = adb_proc.wait(timeout)
         except subprocess.TimeoutExpired:
+            status =  1
             print("Timed out (%d s)" % timeout)
             if on_timeout:
                 on_timeout()
+
+            try:
+                adb_proc.kill()
+            except OSError:
+                pass
+        finally:
+            return status
+
 
     def check_adb(self, args, **kwargs):
         """As .adb(), but throws an exception if the command fails"""
