@@ -586,6 +586,8 @@ c
         MAX_TRIES = 10
         num_tries = 0
 
+        # Ensure device is up else adb root can fail
+        self.adb(["wait-for-device"])
         self.check_adb(["root"])
 
         while True:
@@ -634,7 +636,20 @@ c
         sock.close()
         self.check_adb(["connect", "localhost:%d" % port])
         self.scan_transport(port)
-        self.check_adb(["wait-for-device"], timeout=300)
+
+        # Sometimes adb can get stuck and will never connect. Using multiple
+        # shorter timeouts works better than one longer timeout in such cases.
+        adb_exception = None
+        for _ in range(10):
+            try:
+                self.check_adb(["wait-for-device"], timeout=30)
+                break
+            except AdbFailure as e:
+                adb_exception = e
+                continue
+        else:
+            raise adb_exception
+
         self.adb_root()
 
         # Files put onto the data partition in the Android build will not
