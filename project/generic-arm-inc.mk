@@ -150,6 +150,7 @@ TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
+	trusty/user/app/sample/hwwsk \
 	trusty/user/app/sample/secure_fb_mock_impl \
 	trusty/user/app/storage \
 	trusty/user/base/app/apploader \
