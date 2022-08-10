@@ -559,10 +559,10 @@ c
             [self.adb_bin()] + args, stdin=self.stdin, stdout=stdout,
             stderr=stderr)
 
+        status = 1
         try:
             status = adb_proc.wait(timeout)
         except subprocess.TimeoutExpired:
-            status =  1
             print("Timed out (%d s)" % timeout)
             if on_timeout:
                 on_timeout()
