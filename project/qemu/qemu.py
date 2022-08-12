@@ -534,7 +534,11 @@ c
         """Returns location of adb"""
         return "%s/host/linux-x86/bin/adb" % self.config.android
 
-    def adb(self, args, timeout=60, on_timeout=None, force_output=False):
+    def adb(self,
+            args,
+            timeout=60,
+            on_timeout=lambda timeout: print("Timed out (%d s)" % timeout),
+            force_output=False):
         """Runs an adb command
 
         If self.adb_transport is set, specializes the command to that
@@ -563,7 +567,6 @@ c
         try:
             status = adb_proc.wait(timeout)
         except subprocess.TimeoutExpired:
-            print("Timed out (%d s)" % timeout)
             if on_timeout:
                 on_timeout()
 
@@ -642,12 +645,13 @@ c
         adb_exception = None
         for _ in range(10):
             try:
-                self.check_adb(["wait-for-device"], timeout=30)
+                self.check_adb(["wait-for-device"], timeout=30, on_timeout=None)
                 break
             except AdbFailure as e:
                 adb_exception = e
                 continue
         else:
+            print("'adb wait-for-device' Timed out")
             raise adb_exception
 
         self.adb_root()
@@ -845,6 +849,7 @@ c
                 self.adb_up(ports[1])
 
                 def on_adb_timeout():
+                    print("adb Timed out (%d s)" % self.test_timeout)
                     qemu_handle_error(command_pipe=command_pipe,
                                       debug_on_error=self.debug_on_error)
 
