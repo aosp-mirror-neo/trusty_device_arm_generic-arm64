@@ -99,6 +99,7 @@ QEMU_OPTIONS_PY := $(BUILDDIR)/qemu_options.py
 QEMU_LLDB_SUPPORT_PY := $(BUILDDIR)/lldb_support.py
 QEMU_LLDBINIT := $(BUILDDIR)/lldbinit
 PY3_CMD := $(BUILDDIR)/py3-cmd
+RUN_PY := $(BUILDDIR)/run.py
 
 $(ATF_OUT_DIR):
 	mkdir -p $@
@@ -132,7 +133,8 @@ QEMU_SCRIPTS := \
 	$(QEMU_ERROR_PY) \
 	$(QEMU_OPTIONS_PY) \
 	$(QEMU_LLDB_SUPPORT_PY) \
-	$(QEMU_LLDBINIT)
+	$(QEMU_LLDBINIT) \
+	$(RUN_PY)
 
 $(QEMU_SCRIPTS): .PHONY
 EXTRA_BUILDDEPS += $(QEMU_SCRIPTS)
@@ -160,6 +162,13 @@ $(QEMU_LLDB_SUPPORT_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/lldb_support.py
 
 # Companion script to lldb_support.py that contains LLDB commands
 $(QEMU_LLDBINIT): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/lldbinit
+	@echo copying $@
+	@cp $< $@
+
+# Python version of the run shell script which can be imported by other Python
+# scripts for more granular control over how tests share emulator instances.
+# It serves as a wrapper around qemu.py which defaults the config.
+$(RUN_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/run.py
 	@echo copying $@
 	@cp $< $@
 
@@ -226,17 +235,11 @@ $(RUN_QEMU_SCRIPT): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_
 
 EXTRA_BUILDDEPS += $(RUN_QEMU_SCRIPT)
 
-# Create a wrapper around qemu.py which defaults the config
-# $(RUN_SCRIPT) will be the device-generic interface called by run-tests
-$(RUN_SCRIPT): QEMU_PY := $(subst $(BUILDDIR)/,,$(QEMU_PY))
-$(RUN_SCRIPT): QEMU_CONFIG := $(subst $(BUILDDIR)/,,$(QEMU_CONFIG))
-$(RUN_SCRIPT): PY3_CMD := $(subst $(BUILDDIR)/,,$(PY3_CMD))
-$(RUN_SCRIPT): $(QEMU_SCRIPTS) $(QEMU_CONFIG)
-	@echo generating $@
-	@echo "#!/bin/sh" >$@
-	@echo 'SCRIPT_DIR=$$(dirname "$$0")' >>$@
-	@echo '$$SCRIPT_DIR/$(PY3_CMD) "$$SCRIPT_DIR/$(QEMU_PY)" -c "$$SCRIPT_DIR/$(QEMU_CONFIG)" "$$@"' >>$@
-	@chmod +x $@
+# The original run shell script was replaced by run.py. Create symlink to
+# preserve backwards compatibility.
+$(RUN_SCRIPT): $(RUN_PY)
+	@echo creating $@
+	@ln -sf $(abspath $<) $@
 
 EXTRA_BUILDDEPS += $(RUN_SCRIPT)
 
@@ -289,3 +292,4 @@ QEMU_LLDBINIT :=
 QEMU_PY :=
 QEMU_SCRIPTS :=
 PY3_CMD :=
+RUN_PY :=
