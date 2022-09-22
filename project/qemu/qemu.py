@@ -494,7 +494,7 @@ c
         if self.msg_sock_conn:
             self.msg_sock_conn.close()
 
-    def boottest_run(self, args, timeout=(60 * 2)):
+    def boottest_run(self, args, boot_tests, timeout=(60 * 2)):
         """Run boot test cases"""
 
         has_error = False
@@ -530,7 +530,7 @@ c
         if not self.debug:
             kill_timer.start()
 
-        testcase = "boottest " + "".join(self.boot_tests)
+        testcase = "boottest " + "".join(boot_tests)
         try:
             self.msg_channel_send_msg(testcase)
 
@@ -582,6 +582,18 @@ c
             raise RunnerGenericError("QEMU did not exit cleanly")
 
         return result
+
+    def androidtest_run(self, cmd, test_timeout=None):
+        """Run android test cases"""
+
+        test_timeout = test_timeout if test_timeout else self.test_timeout
+        def on_adb_timeout():
+            print("adb Timed out (%d s)" % self.test_timeout)
+            qemu_handle_error(command_pipe=self.session.command_pipe,
+                              debug_on_error=self.debug_on_error)
+
+        return self.adb(["shell"] + cmd, timeout=test_timeout,
+                            on_timeout=on_adb_timeout, force_output=True)
 
     def adb_bin(self):
         """Returns location of adb"""
@@ -818,7 +830,8 @@ c
             args += self.msg_channel_up()
 
             if self.boot_tests:
-                return [self.boottest_run(args, timeout=self.test_timeout)]
+                return [self.boottest_run(args, self.boot_tests,
+                                          timeout=self.test_timeout)]
 
             # Logging and terminal monitor
             # Prepend so that it is the *first* serial port and avoid
@@ -867,17 +880,9 @@ c
                 # Bring ADB up talking to the command port
                 self.adb_up(session.ports[1])
 
-                def on_adb_timeout():
-                    print(f"adb Timed out ({self.test_timeout} s)")
-                    qemu_handle_error(command_pipe=session.command_pipe,
-                                      debug_on_error=self.debug_on_error)
-
                 # Run android tests
                 for android_test in self.android_tests:
-                    test_result = self.adb(["shell", android_test],
-                                           timeout=self.test_timeout,
-                                           on_timeout=on_adb_timeout,
-                                           force_output=True)
+                    test_result = self.androidtest_run([android_test])
                     test_results.append(test_result)
                     if test_result:
                         session.has_error = True
