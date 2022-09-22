@@ -292,6 +292,23 @@ def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
             unclean_exit = True
     return unclean_exit
 
+class RunnerSession:
+    """Hold shared state between runner launch and shutdown."""
+
+    def __init__(self):
+        self.has_error = False
+        self.command_pipe = None
+        self.qemu_proc = None
+        self.ports = None
+        # stores the arguments used to start qemu iff performing a boot test
+        self.args = []
+        self.temp_files = []
+
+    def get_qemu_arg_temp_file(self):
+        """Returns a temp file that will be deleted after qemu exits."""
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        self.temp_files.append(tmp.name)
+        return tmp
 
 class Runner(object):
     """Executes tests in QEMU"""
@@ -318,7 +335,6 @@ class Runner(object):
         self.debug = debug
         self.verbose = verbose
         self.adb_transport = None
-        self.temp_files = []
         self.use_rpmb = rpmb
         self.rpmb_proc = None
         self.rpmb_sock_dir = None
@@ -778,19 +794,10 @@ c
         self.config.check_config(self.interactive, self.boot_tests,
                                  self.android_tests)
 
-        ports = None
-
-        args = self.universal_args()
+        session = RunnerSession()
+        session.args = args = self.universal_args()
 
         test_results = []
-        command_pipe = None
-
-        qemu_proc = None
-        has_error = False
-
-        # Resource exists in multiple functions, wants to use the same
-        # cleanup block regardless
-        self.temp_files = []
 
         try:
             if self.use_rpmb:
@@ -799,7 +806,7 @@ c
             if self.config.linux:
                 args += self.qemu_arch_options.gen_dtb(
                     args,
-                    self.get_qemu_arg_temp_file())
+                    session.get_qemu_arg_temp_file())
 
             # Prepend the machine since we don't need to edit it as in gen_dtb
             args = self.qemu_arch_options.machine_options() + args
@@ -821,29 +828,29 @@ c
             # If we're noninteractive (e.g. testing) we need a command channel
             # to tell the guest to exit
             if not self.interactive:
-                command_pipe = QEMUCommandPipe()
-                args += command_pipe.command_args
+                session.command_pipe = QEMUCommandPipe()
+                args += session.command_pipe.command_args
 
             # Reserve ADB ports
-            ports = alloc_ports()
+            session.ports = alloc_ports()
 
             # Write expected serial number (as given in adb) to stdout.
-            sys.stdout.write(f"DEVICE_SERIAL: localhost:{ports[1]}\n")
+            sys.stdout.write(f"DEVICE_SERIAL: localhost:{session.ports[1]}\n")
             sys.stdout.flush()
 
             # Forward ADB ports in qemu
-            args += forward_ports(ports)
+            args += forward_ports(session.ports)
 
             qemu_cmd = [self.config.qemu] + args
-            qemu_proc = subprocess.Popen(  # pylint: disable=consider-using-with
+            session.qemu_proc = subprocess.Popen(  # pylint: disable=consider-using-with
                 qemu_cmd,
                 cwd=self.config.atf,
                 stdin=self.stdin,
                 stdout=self.stdout,
                 stderr=self.stderr)
 
-            if command_pipe:
-                command_pipe.open()
+            if session.command_pipe:
+                session.command_pipe.open()
             self.msg_channel_wait_for_connection()
 
             if self.debug:
@@ -858,11 +865,11 @@ c
                 self.msg_channel_send_msg("Boot Secondary OS")
 
                 # Bring ADB up talking to the command port
-                self.adb_up(ports[1])
+                self.adb_up(session.ports[1])
 
                 def on_adb_timeout():
                     print(f"adb Timed out ({self.test_timeout} s)")
-                    qemu_handle_error(command_pipe=command_pipe,
+                    qemu_handle_error(command_pipe=session.command_pipe,
                                       debug_on_error=self.debug_on_error)
 
                 # Run android tests
@@ -873,27 +880,27 @@ c
                                            force_output=True)
                     test_results.append(test_result)
                     if test_result:
-                        has_error = True
+                        session.has_error = True
                         break
             # Finally is used here to ensure that ADB failures do not take away
             # the user's serial console in interactive mode.
             finally:
                 if self.interactive:
                     # The user is responsible for quitting QEMU
-                    qemu_proc.wait()
+                    session.qemu_proc.wait()
         except:
-            has_error = True
+            session.has_error = True
             raise
         finally:
             # Clean up generated device tree
-            for temp_file in self.temp_files:
+            for temp_file in session.temp_files:
                 os.remove(temp_file)
 
-            if has_error:
+            if session.has_error:
                 self.error_dump_output()
 
-            unclean_exit = qemu_exit(command_pipe, qemu_proc,
-                                     has_error=has_error,
+            unclean_exit = qemu_exit(session.command_pipe, session.qemu_proc,
+                                     has_error=session.has_error,
                                      debug_on_error=self.debug_on_error)
 
             fcntl.fcntl(0, fcntl.F_SETFL,
@@ -905,10 +912,11 @@ c
 
             if self.adb_transport:
                 # Disconnect ADB and wait for our port to be released by qemu
-                self.adb_down(ports[1])
+                self.adb_down(session.ports[1])
 
             if unclean_exit:
                 raise RunnerGenericError("QEMU did not exit cleanly")
+
         return test_results
 
 
