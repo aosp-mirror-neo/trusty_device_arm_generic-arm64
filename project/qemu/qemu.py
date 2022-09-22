@@ -81,6 +81,35 @@ class Config(object):
         self.arch = config_dict.get("arch")
         self.extra_qemu_flags = config_dict.get("extra_qemu_flags", [])
 
+    def check_config(self, interactive: bool, boot_tests=(),
+                     android_tests=()):
+        """Checks the runner/qemu config to make sure they are compatible"""
+        # If we have any android tests, we need a linux dir and android dir
+        if android_tests:
+            if not self.linux:
+                raise ConfigError("Need Linux to run android tests")
+            if not self.android:
+                raise ConfigError("Need Android to run android tests")
+
+        # For now, we can't run boot tests and android tests at the same time,
+        # because test-runner reports its exit code by terminating the
+        # emulator.
+        if android_tests:
+            if boot_tests:
+                raise ConfigError("Cannot run Android tests and boot"
+                                  " tests from same runner")
+
+        # Since boot test utilizes virtio serial console port for communication
+        # between QEMU guest and current process, it is not compatible with
+        # interactive mode.
+        if boot_tests:
+            if interactive:
+                raise ConfigError("Cannot run boot tests interactively")
+
+        if self.android:
+            if not self.linux:
+                raise ConfigError("Cannot run Android without Linux")
+
 
 def alloc_ports():
     """Allocates 2 sequential ports above 5554 for adb"""
@@ -694,34 +723,6 @@ c
             except IOError:
                 break
 
-    def check_config(self):
-        """Checks the runner/qemu config to make sure they are compatible"""
-        # If we have any android tests, we need a linux dir and android dir
-        if self.android_tests:
-            if not self.config.linux:
-                raise ConfigError("Need Linux to run android tests")
-            if not self.config.android:
-                raise ConfigError("Need Android to run android tests")
-
-        # For now, we can't run boot tests and android tests at the same time,
-        # because test-runner reports its exit code by terminating the
-        # emulator.
-        if self.android_tests:
-            if self.boot_tests:
-                raise ConfigError("Cannot run Android tests and boot"
-                                  " tests from same runner")
-
-        # Since boot test utilizes virtio serial console port for communication
-        # between QEMU guest and current process, it is not compatible with
-        # interactive mode.
-        if self.boot_tests:
-            if self.interactive:
-                raise ConfigError("Cannot run boot tests interactively")
-
-        if self.config.android:
-            if not self.config.linux:
-                raise ConfigError("Cannot run Android without Linux")
-
     def universal_args(self):
         """Generates arguments used in all qemu invocations"""
         args = self.qemu_arch_options.basic_options()
@@ -774,7 +775,8 @@ c
 
           If the adb port range is already in use, port forwarding may fail.
         """
-        self.check_config()
+        self.config.check_config(self.interactive, self.boot_tests,
+                                 self.android_tests)
 
         ports = None
 
