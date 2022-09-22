@@ -64,15 +64,20 @@ class Config(object):
             config_dict = json.load(config)
 
         self.script_dir = os.path.dirname(os.path.realpath(__file__))
-        self.android = find_android_build_dir(
-            os.path.join(self.script_dir, config_dict.get("android"))
-        )
-        self.linux = os.path.join(self.script_dir, config_dict.get("linux"))
+        def abspath(config_key, default_value=None):
+            if config_value := config_dict.get(config_key, default_value):
+                return os.path.join(self.script_dir, config_value)
+            return None
+
+        if android_path := abspath("android"):
+            self.android = find_android_build_dir(android_path)
+        else:
+            self.android = None
+        self.linux = abspath("linux")
         self.linux_arch = config_dict.get("linux_arch")
-        self.atf = os.path.join(self.script_dir, config_dict.get("atf"))
-        self.qemu = os.path.join(self.script_dir,
-                                 config_dict.get("qemu", "qemu-system-aarch64"))
-        self.rpmbd = os.path.join(self.script_dir, config_dict.get("rpmbd"))
+        self.atf = abspath("atf")
+        self.qemu = abspath("qemu", "qemu-system-aarch64")
+        self.rpmbd = abspath("rpmbd")
         self.arch = config_dict.get("arch")
         self.extra_qemu_flags = config_dict.get("extra_qemu_flags", [])
 
