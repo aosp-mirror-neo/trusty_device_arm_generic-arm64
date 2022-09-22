@@ -5,6 +5,7 @@ import errno
 import fcntl
 import json
 import os
+from textwrap import dedent
 import qemu_options
 import re
 import select
@@ -315,8 +316,6 @@ class Runner(object):
 
     def __init__(self,
                  config,
-                 boot_tests=None,
-                 android_tests=None,
                  interactive=False,
                  verbose=False,
                  rpmb=True,
@@ -329,8 +328,6 @@ class Runner(object):
         """
         default_timeout = 60 * 10 # 10 Minutes
         self.config = config
-        self.boot_tests = boot_tests if boot_tests else []
-        self.android_tests = android_tests if android_tests else []
         self.interactive = interactive
         self.debug = debug
         self.verbose = verbose
@@ -366,20 +363,6 @@ class Runner(object):
             self.qemu_arch_options = qemu_options.QemuX86_64Options(self.config)
         else:
             raise ConfigError("Architecture unspecified or unsupported!")
-
-        if self.boot_tests and self.debug:
-            print("""\
-Warning: Test selection does not work when --debug is set.
-To run a test in test runner, run in GDB:
-
-target remote :1234
-break host_get_cmdline
-c
-next 6
-set cmdline="boottest your.port.here"
-set cmdline_len=sizeof("boottest your.port.here")-1
-c
-""")
 
     def error_dump_output(self):
         if self.dump_stdout_on_error:
@@ -499,6 +482,21 @@ c
 
         has_error = False
         result = 2
+
+        if self.debug:
+            warning = """\
+                      Warning: Test selection does not work when --debug is set.
+                      To run a test in test runner, run in GDB:
+
+                      target remote :1234
+                      break host_get_cmdline
+                      c
+                      next 6
+                      set cmdline="boottest your.port.here"
+                      set cmdline_len=sizeof("boottest your.port.here")-1
+                      c
+                      """
+            print(dedent(warning))
 
         if self.interactive:
             args = ["-serial", "mon:stdio"] + args
@@ -767,7 +765,7 @@ c
 
         return args
 
-    def run(self):
+    def run(self, boot_tests=[], android_tests=[]):
         """Launches the QEMU execution.
 
         Runs boot_tests through test_runner, android_tests through ADB,
@@ -803,8 +801,7 @@ c
 
           If the adb port range is already in use, port forwarding may fail.
         """
-        self.config.check_config(self.interactive, self.boot_tests,
-                                 self.android_tests)
+        self.config.check_config(self.interactive, boot_tests, android_tests)
 
         session = RunnerSession()
         session.args = args = self.universal_args()
@@ -829,8 +826,8 @@ c
             # Create socket for communication channel
             args += self.msg_channel_up()
 
-            if self.boot_tests:
-                return [self.boottest_run(args, self.boot_tests,
+            if boot_tests:
+                return [self.boottest_run(args, boot_tests,
                                           timeout=self.test_timeout)]
 
             # Logging and terminal monitor
@@ -881,7 +878,7 @@ c
                 self.adb_up(session.ports[1])
 
                 # Run android tests
-                for android_test in self.android_tests:
+                for android_test in android_tests:
                     test_result = self.androidtest_run([android_test])
                     test_results.append(test_result)
                     if test_result:
@@ -962,8 +959,7 @@ def main():
     if args.extra_qemu_flags:
         config.extra_qemu_flags += args.extra_qemu_flags
 
-    runner = Runner(config, boot_tests=args.boot_test,
-                    android_tests=args.shell_command,
+    runner = Runner(config,
                     interactive=not args.headless,
                     verbose=args.verbose,
                     rpmb=not args.disable_rpmb,
@@ -972,7 +968,7 @@ def main():
                     timeout=args.timeout)
 
     try:
-        results = runner.run()
+        results = runner.run(args.boot_test, args.shell_command)
         print("Command results: " + repr(results))
 
         if any(results):
