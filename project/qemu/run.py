@@ -1,8 +1,11 @@
 #!/bin/sh
 "exec" "`dirname $0`/py3-cmd" "$0" "-c" "`dirname $0`/config.json" "$@"
 
+import argparse
 import os
 from typing import List, Optional
+import sys
+
 
 import qemu
 import qemu_error
@@ -44,7 +47,7 @@ def _check_args(args):
 
 
 def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
-    args = qemu.build_argparser().parse_args(cmd)
+    args = build_argparser().parse_args(cmd)
     _check_args(args)
 
     # make sure runner was started with rpmb in the state needed for test
@@ -67,5 +70,62 @@ def shutdown(runner: Optional[qemu.Runner]):
         runner.shutdown()
 
 
+def build_argparser():
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("-c", "--config", type=argparse.FileType("r"))
+    argument_parser.add_argument("--headless", action="store_true")
+    argument_parser.add_argument("-v", "--verbose", action="store_true")
+    argument_parser.add_argument("--debug", action="store_true")
+    argument_parser.add_argument("--debug-on-error", action="store_true")
+    argument_parser.add_argument("--boot-test", action="append")
+    argument_parser.add_argument("--shell-command", action="append")
+    argument_parser.add_argument("--android")
+    argument_parser.add_argument("--linux")
+    argument_parser.add_argument("--atf")
+    argument_parser.add_argument("--qemu")
+    argument_parser.add_argument("--arch")
+    argument_parser.add_argument("--disable-rpmb", action="store_true")
+    argument_parser.add_argument("--timeout", type=int)
+    argument_parser.add_argument("extra_qemu_flags", nargs="*")
+    return argument_parser
+
+
+def main():
+    args = build_argparser().parse_args()
+
+    config = qemu.Config(args.config)
+    if args.android:
+        config.android = qemu.find_android_build_dir(args.android)
+    if args.linux:
+        config.linux = args.linux
+    if args.atf:
+        config.atf = args.atf
+    if args.qemu:
+        config.qemu = args.qemu
+    if args.arch:
+        config.arch = args.arch
+    if args.extra_qemu_flags:
+        config.extra_qemu_flags += args.extra_qemu_flags
+
+    runner = qemu.Runner(config,
+                         interactive=not args.headless,
+                         verbose=args.verbose,
+                         rpmb=not args.disable_rpmb,
+                         debug=args.debug,
+                         debug_on_error=args.debug_on_error)
+
+    try:
+        results = runner.run(args.boot_test, args.shell_command, args.timeout)
+        print("Command results: " + repr(results))
+
+        if any(results):
+            sys.exit(1)
+        else:
+            sys.exit(0)
+    except qemu.RunnerError as exn:
+        print(exn)
+        sys.exit(2)
+
+
 if __name__ == "__main__":
-    qemu.main()
+    main()
