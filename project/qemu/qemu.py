@@ -24,12 +24,12 @@ ADB_BASE_PORT = 5554
 
 
 def find_android_build_dir(android):
-    if os.path.exists('%s/target/product/trusty' % android):
+    if os.path.exists(f"{android}/target/product/trusty"):
         return android
-    elif os.path.exists('%s/out/target/product/trusty' % android):
-        return '%s/out' % android
+    elif os.path.exists(f"{android}/out/target/product/trusty"):
+        return f"{android}/out"
     else:
-        print('%s not an Android source or build directory' % android)
+        print(f"{android} not an Android source or build directory")
         sys.exit(1)
 
 
@@ -70,7 +70,8 @@ class Config(object):
         self.linux = os.path.join(self.script_dir, config_dict.get("linux"))
         self.linux_arch = config_dict.get("linux_arch")
         self.atf = os.path.join(self.script_dir, config_dict.get("atf"))
-        self.qemu = os.path.join(self.script_dir, config_dict.get("qemu", "qemu-system-aarch64"))
+        self.qemu = os.path.join(self.script_dir,
+                                 config_dict.get("qemu", "qemu-system-aarch64"))
         self.rpmbd = os.path.join(self.script_dir, config_dict.get("rpmbd"))
         self.arch = config_dict.get("arch")
         self.extra_qemu_flags = config_dict.get("extra_qemu_flags", [])
@@ -79,14 +80,14 @@ class Config(object):
 def alloc_ports():
     """Allocates 2 sequential ports above 5554 for adb"""
     # adb uses ports in pairs
-    PORT_WIDTH = 2
+    port_width = 2
 
     # We can't actually reserve ports atomically for QEMU, but we can at
     # least scan and find two that are not currently in use.
     min_port = ADB_BASE_PORT
     while True:
         alloced_ports = []
-        for port in range(min_port, min_port + PORT_WIDTH):
+        for port in range(min_port, min_port + port_width):
             # If the port is already in use, don't hand it out
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -94,24 +95,24 @@ def alloc_ports():
                 break
             except IOError:
                 alloced_ports += [port]
-        if len(alloced_ports) == PORT_WIDTH:
+        if len(alloced_ports) == port_width:
             return alloced_ports
 
         # We could increment by only 1, but if we are competing with other
         # adb sessions for ports, this will be more polite
-        min_port += PORT_WIDTH
+        min_port += port_width
 
 
 def forward_ports(ports):
     """Generates arguments to forward ports in QEMU on a virtio network"""
-    forwards = []
+    forwards = ""
     remap_port = ADB_BASE_PORT
     for port in ports:
-        forwards += ["hostfwd=tcp::%d-:%d" % (port, remap_port)]
+        forwards += f",hostfwd=tcp::{port}-:{remap_port}"
         remap_port = remap_port + 1
     return [
         "-device", "virtio-net,netdev=adbnet0", "-netdev",
-        "user,id=adbnet0,%s" % ",".join(forwards)
+        "user,id=adbnet0" + forwards
     ]
 
 
@@ -121,19 +122,22 @@ class QEMUCommandPipe(object):
     def __init__(self):
         """Produces pipes for talking to QEMU and args to enable them."""
         self.command_dir = tempfile.mkdtemp()
-        os.mkfifo("%s/com.in" % self.command_dir)
-        os.mkfifo("%s/com.out" % self.command_dir)
+        os.mkfifo(f"{self.command_dir}/com.in")
+        os.mkfifo(f"{self.command_dir}/com.out")
         self.command_args = [
             "-chardev",
-            "pipe,id=command0,path=%s/com" % self.command_dir, "-mon",
+            f"pipe,id=command0,path={self.command_dir}/com", "-mon",
             "chardev=command0,mode=control"
         ]
         self.com_pipe_in = None
         self.com_pipe_out = None
 
     def open(self):
-        self.com_pipe_in = open("%s/com.in" % self.command_dir, "w")
-        self.com_pipe_out = open("%s/com.out" % self.command_dir, "r")
+        # pylint: disable=consider-using-with
+        self.com_pipe_in = open(f"{self.command_dir}/com.in", "w",
+                                encoding="utf-8")
+        self.com_pipe_out = open(f"{self.command_dir}/com.out", "r",
+                                 encoding="utf-8")
         self.qmp_command({"execute": "qmp_capabilities"})
 
     def close(self):
@@ -141,7 +145,7 @@ class QEMUCommandPipe(object):
 
         def try_close(pipe):
             try:
-                self.com_pipe_in.close()
+                pipe.close()
             except IOError as e:
                 print("close error ignored", e)
 
@@ -172,9 +176,8 @@ class QEMUCommandPipe(object):
             for line in iter(self.com_pipe_out.readline, ""):
                 res = json.loads(line)
 
-                if "error" in res:
-                    sys.stderr.write("Command {} failed: {}\n".format(
-                        qmp_command, res["error"]))
+                if err := res.get("error"):
+                    sys.stderr.write(f"Command {qmp_command} failed: {err}\n")
                     return res
 
                 if "return" in res:
@@ -273,7 +276,7 @@ class Runner(object):
 
         See .run() for the meanings of these.
         """
-        DEFAULT_TIMEOUT = 60 * 10 # 10 Minutes
+        default_timeout = 60 * 10 # 10 Minutes
         self.config = config
         self.boot_tests = boot_tests if boot_tests else []
         self.android_tests = android_tests if android_tests else []
@@ -290,7 +293,7 @@ class Runner(object):
         self.debug_on_error = debug_on_error
         self.dump_stdout_on_error = False
         self.qemu_arch_options = None
-        self.test_timeout = DEFAULT_TIMEOUT if timeout is None else timeout
+        self.test_timeout = default_timeout if timeout is None else timeout
 
         # If we're not verbose or interactive, squelch command output
         if verbose or self.interactive:
@@ -307,9 +310,9 @@ class Runner(object):
         else:
             self.stdin = subprocess.DEVNULL
 
-        if self.config.arch == 'arm64' or self.config.arch == 'arm':
+        if self.config.arch in ("arm64", "arm"):
             self.qemu_arch_options = qemu_options.QemuArm64Options(self.config)
-        elif self.config.arch == 'x86_64':
+        elif self.config.arch == "x86_64":
             self.qemu_arch_options = qemu_options.QemuX86_64Options(self.config)
         else:
             raise ConfigError("Architecture unspecified or unsupported!")
@@ -337,6 +340,7 @@ c
 
     def get_qemu_arg_temp_file(self):
         """Returns a temp file that will be deleted after qemu exits."""
+        # pylint: disable=consider-using-with
         tmp = tempfile.NamedTemporaryFile(delete=False)
         self.temp_files.append(tmp.name)
         return tmp
@@ -346,7 +350,8 @@ c
         rpmb_data = self.qemu_arch_options.rpmb_data_path()
 
         self.rpmb_sock_dir = tempfile.mkdtemp()
-        rpmb_sock = "%s/rpmb" % self.rpmb_sock_dir
+        rpmb_sock = f"{self.rpmb_sock_dir}/rpmb"
+        # pylint: disable=consider-using-with
         rpmb_proc = subprocess.Popen([self.config.rpmbd,
                                       "-d", rpmb_data,
                                       "--sock", rpmb_sock])
@@ -388,7 +393,7 @@ c
         """
 
         self.msg_sock_dir = tempfile.mkdtemp()
-        msg_sock_file = "%s/msg" % self.msg_sock_dir
+        msg_sock_file = f"{self.msg_sock_dir}/msg"
         self.msg_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.msg_sock.bind(msg_sock_file)
 
@@ -397,7 +402,7 @@ c
 
         return ["-device",
                 "virtserialport,chardev=testrunner0,name=testrunner0",
-                "-chardev", "socket,id=testrunner0,path=%s" % msg_sock_file]
+                "-chardev", f"socket,id=testrunner0,path={msg_sock_file}"]
 
     def msg_channel_down(self):
         if self.msg_sock_conn:
@@ -459,6 +464,7 @@ c
         args += command_pipe.command_args
         cmd = [self.config.qemu] + args
 
+        # pylint: disable=consider-using-with
         qemu_proc = subprocess.Popen(cmd, cwd=self.config.atf)
 
         command_pipe.open()
@@ -466,9 +472,8 @@ c
 
         def kill_testrunner():
             self.msg_channel_down()
-            unclean_exit = qemu_exit(command_pipe, qemu_proc,
-                                     has_error=True,
-                                     debug_on_error=self.debug_on_error)
+            qemu_exit(command_pipe, qemu_proc, has_error=True,
+                      debug_on_error=self.debug_on_error)
             raise Timeout("Wait for boottest to complete", timeout)
 
         kill_timer = threading.Timer(timeout, kill_testrunner)
@@ -486,7 +491,7 @@ c
                 # instance child QEMU process crashed, a message with length
                 # 0 would be received. We should drop this message, and
                 # indicate test framework that something abnormal happened.
-                if not len(ret):
+                if len(ret) == 0:
                     has_error = True
                     break
 
@@ -516,8 +521,6 @@ c
                     has_error = True
                     result = 1
                     break
-        except:
-            raise
         finally:
             kill_timer.cancel()
             self.msg_channel_down()
@@ -532,12 +535,12 @@ c
 
     def adb_bin(self):
         """Returns location of adb"""
-        return "%s/host/linux-x86/bin/adb" % self.config.android
+        return f"{self.config.android}/host/linux-x86/bin/adb"
 
     def adb(self,
             args,
             timeout=60,
-            on_timeout=lambda timeout: print("Timed out (%d s)" % timeout),
+            on_timeout=lambda timeout: print(f"Timed out ({timeout} s)"),
             force_output=False):
         """Runs an adb command
 
@@ -550,7 +553,7 @@ c
         stderr regardless of the runner's preferences.
         """
         if self.adb_transport:
-            args = ["-t", "%d" % self.adb_transport] + args
+            args = ["-t", str(self.adb_transport)] + args
 
         if force_output:
             stdout = None
@@ -559,7 +562,7 @@ c
             stdout = self.stdout
             stderr = self.stderr
 
-        adb_proc = subprocess.Popen(
+        adb_proc = subprocess.Popen(  # pylint: disable=consider-using-with
             [self.adb_bin()] + args, stdin=self.stdin, stdout=stdout,
             stderr=stderr)
 
@@ -575,7 +578,7 @@ c
             except OSError:
                 pass
         finally:
-            return status
+            return status  # pylint: disable=lost-exception
 
 
     def check_adb(self, args, **kwargs):
@@ -586,7 +589,7 @@ c
 
     def adb_root(self):
         """Restarts adbd with root permissions and waits until it's back up"""
-        MAX_TRIES = 10
+        max_tries = 10
         num_tries = 0
 
         # Ensure device is up else adb root can fail
@@ -604,7 +607,7 @@ c
                 return
 
             num_tries += 1
-            if num_tries >= MAX_TRIES:
+            if num_tries >= max_tries:
                 raise AdbFailure(["root"], code)
             time.sleep(1)
 
@@ -612,32 +615,32 @@ c
         """Given a port and `adb devices -l`, find the transport id"""
         output = subprocess.check_output([self.adb_bin(), "devices", "-l"],
                                          universal_newlines=True)
-        match = re.search(r"localhost:%d.*transport_id:(\d+)" % port, output)
+        match = re.search(fr"localhost:{port}.*transport_id:(\d+)", output)
         if not match:
             if expect_none:
                 self.adb_transport = None
                 return
-            print("Failed to find transport for port %d in \n%s" % (port,
-                                                                    output))
+            print(f"Failed to find transport for port {port} in \n{output}")
         self.adb_transport = int(match.group(1))
 
     def adb_up(self, port):
         """Ensures adb is connected to adbd on the selected port"""
         # Wait until we can connect to the target port
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        CONNECT_MAX_TRIES = 15
+        connect_max_tries = 15
         connect_tries = 0
         while True:
             try:
                 sock.connect(("localhost", port))
                 break
-            except IOError:
+            except IOError as ioe:
                 connect_tries += 1
-                if connect_tries >= CONNECT_MAX_TRIES:
-                    raise Timeout("Wait for adbd socket", CONNECT_MAX_TRIES)
+                if connect_tries >= connect_max_tries:
+                    raise Timeout("Wait for adbd socket",
+                                  connect_max_tries) from ioe
                 time.sleep(1)
         sock.close()
-        self.check_adb(["connect", "localhost:%d" % port])
+        self.check_adb(["connect", f"localhost:{port}"])
         self.scan_transport(port)
 
         # Sometimes adb can get stuck and will never connect. Using multiple
@@ -665,10 +668,10 @@ c
 
     def adb_down(self, port):
         """Cleans up after adb connection to adbd on selected port"""
-        self.check_adb(["disconnect", "localhost:%d" % port])
+        self.check_adb(["disconnect", f"localhost:{port}"])
 
         # Wait until QEMU's forward has expired
-        CONNECT_MAX_TRIES = 300
+        connect_max_tries = 300
         connect_tries = 0
         while True:
             try:
@@ -678,9 +681,9 @@ c
                     sock.connect(("localhost", port))
                     sock.close()
                 connect_tries += 1
-                if connect_tries >= CONNECT_MAX_TRIES:
+                if connect_tries >= connect_max_tries:
                     raise Timeout("Wait for port forward to go away",
-                                  CONNECT_MAX_TRIES)
+                                  connect_max_tries)
                 time.sleep(1)
             except IOError:
                 break
@@ -817,14 +820,14 @@ c
             ports = alloc_ports()
 
             # Write expected serial number (as given in adb) to stdout.
-            sys.stdout.write('DEVICE_SERIAL: localhost:%d\n' % ports[1])
+            sys.stdout.write(f"DEVICE_SERIAL: localhost:{ports[1]}\n")
             sys.stdout.flush()
 
             # Forward ADB ports in qemu
             args += forward_ports(ports)
 
             qemu_cmd = [self.config.qemu] + args
-            qemu_proc = subprocess.Popen(
+            qemu_proc = subprocess.Popen(  # pylint: disable=consider-using-with
                 qemu_cmd,
                 cwd=self.config.atf,
                 stdin=self.stdin,
@@ -836,8 +839,9 @@ c
             self.msg_channel_wait_for_connection()
 
             if self.debug:
-                if self.config.script_dir.endswith("/build-qemu-generic-arm64-test-debug"):
-                    print(f"Debug with: lldb --source {self.config.script_dir}/lldbinit")
+                script_dir = self.config.script_dir
+                if script_dir.endswith("/build-qemu-generic-arm64-test-debug"):
+                    print(f"Debug with: lldb --source {script_dir}/lldbinit")
                 else:
                     print("Debug with: lldb --one-line 'gdb-remote 1234'")
 
@@ -849,7 +853,7 @@ c
                 self.adb_up(ports[1])
 
                 def on_adb_timeout():
-                    print("adb Timed out (%d s)" % self.test_timeout)
+                    print(f"adb Timed out ({self.test_timeout} s)")
                     qemu_handle_error(command_pipe=command_pipe,
                                       debug_on_error=self.debug_on_error)
 
@@ -902,7 +906,7 @@ c
 
 def build_argparser():
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("-c", "--config", type=argparse.FileType('r'))
+    argument_parser.add_argument("-c", "--config", type=argparse.FileType("r"))
     argument_parser.add_argument("--headless", action="store_true")
     argument_parser.add_argument("-v", "--verbose", action="store_true")
     argument_parser.add_argument("--debug", action="store_true")
@@ -948,7 +952,7 @@ def main():
 
     try:
         results = runner.run()
-        print("Command results: %r" % results)
+        print("Command results: " + repr(results))
 
         if any(results):
             sys.exit(1)
