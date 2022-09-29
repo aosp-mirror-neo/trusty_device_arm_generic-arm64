@@ -582,8 +582,8 @@ c
                 adb_proc.kill()
             except OSError:
                 pass
-        finally:
-            return status  # pylint: disable=lost-exception
+
+        return status
 
 
     def check_adb(self, args, **kwargs):
