@@ -625,7 +625,8 @@ c
             if expect_none:
                 self.adb_transport = None
                 return
-            print(f"Failed to find transport for port {port} in \n{output}")
+            raise RunnerGenericError(
+                f"Failed to find transport for port {port} in \n{output}")
         self.adb_transport = int(match.group(1))
 
     def adb_up(self, port):
