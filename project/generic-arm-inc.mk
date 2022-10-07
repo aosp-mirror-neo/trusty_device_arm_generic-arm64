@@ -147,6 +147,7 @@ TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/confirmationui \
 	trusty/user/app/gatekeeper \
 	trusty/user/app/keymaster \
+	trusty/user/app/keymint/app \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
