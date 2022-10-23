@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run Trusty under QEMU in different configurations"""
+import enum
 import errno
 import fcntl
 import json
@@ -310,6 +311,13 @@ class RunnerSession:
         self.temp_files.append(tmp.name)
         return tmp
 
+
+class RunnerState(enum.Enum):
+    OFF = 0,
+    BOOTLOADER = 1,
+    ANDROID = 2,
+
+
 class Runner(object):
     """Executes tests in QEMU"""
 
@@ -339,6 +347,7 @@ class Runner(object):
         self.qemu_arch_options = None
         self.default_timeout = 60 * 10 # 10 Minutes
         self.session: RunnerSession = None
+        self.state = RunnerState.OFF
 
         # If we're not verbose or interactive, squelch command output
         if verbose or self.interactive:
@@ -770,7 +779,7 @@ class Runner(object):
 
         return args
 
-    def launch(self, boot_test_only):
+    def launch(self, target_state):
         """Launches the QEMU execution.
 
         If interactive is specified, it will leave the user connected
@@ -792,6 +801,10 @@ class Runner(object):
               android tests are launched. Specifically, we might stop execution
               in the bootloader and have it wait for a command to boot android.
         """
+        assert self.state == RunnerState.OFF
+        assert target_state in [RunnerState.BOOTLOADER,
+                                RunnerState.ANDROID], target_state
+
         self.session = RunnerSession()
         args = self.universal_args()
 
@@ -813,8 +826,9 @@ class Runner(object):
             # Create socket for communication channel
             args += self.msg_channel_up()
 
-            if boot_test_only:
+            if target_state == RunnerState.BOOTLOADER:
                 self.session.args = args
+                self.state = target_state
                 return
 
             # Logging and terminal monitor
@@ -863,6 +877,8 @@ class Runner(object):
 
             # Bring ADB up talking to the command port
             self.adb_up(self.session.ports[1])
+
+            self.state = target_state
         except:
             self.session.has_error = True
             raise
@@ -874,7 +890,10 @@ class Runner(object):
         Calls to launch and shutdown must be correctly paired no matter whether
         the launch steps and calls to adb succeed or fail.
         """
-        assert self.session, "No session; was shutdown call preceded by launch?"
+        if self.state == RunnerState.OFF:
+            return
+
+        assert self.session is not None
 
         # Clean up generated device tree
         for temp_file in self.session.temp_files:
@@ -900,9 +919,20 @@ class Runner(object):
             self.adb_down(self.session.ports[1])
 
         self.session = None
+        self.state = RunnerState.OFF
 
         if unclean_exit:
             raise RunnerGenericError("QEMU did not exit cleanly")
+
+    def reboot(self, target_state):
+        self.shutdown()
+
+        try:
+            self.launch(target_state)
+        except:
+            self.shutdown()
+            raise
+
 
     def run(self, boot_tests=[], android_tests=[], timeout=None):
         """Run boot or android tests.
@@ -926,13 +956,15 @@ class Runner(object):
           If android_tests is provided, a Linux and Android dir must be
           provided in the config.
         """
-        boot_tests = boot_tests if boot_tests else []
+        assert self.state == RunnerState.OFF
+        target_state = (RunnerState.BOOTLOADER if boot_tests else
+                        RunnerState.ANDROID)
         android_tests = android_tests if android_tests else []
         self.config.check_config(self.interactive, boot_tests, android_tests)
 
         timeout = timeout if timeout else self.default_timeout
         try:
-            self.launch(bool(boot_tests))
+            self.launch(target_state)
 
             match (boot_tests, android_tests):
                 case ([], []):

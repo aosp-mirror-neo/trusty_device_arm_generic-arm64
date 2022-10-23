@@ -46,23 +46,37 @@ def _check_args(args):
     assert not args.disable_rpmb, args
 
 
-def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
-    args = build_argparser().parse_args(cmd)
-    _check_args(args)
+def _prepare_runner_for_test(runner, args):
+    """Check if the runner is in the correct state (BOOTLOADER, ANDROID)
+    to run a given test and reboot the emulator if it is not.
 
-    # make sure runner was started with rpmb in the state needed for test
-    assert args.disable_rpmb == (not runner.use_rpmb)
-
-    timeout = args.timeout if args.timeout else runner.default_timeout
+    TODO: Remove the unconditional reboot after boot tests once the test harness
+          no longers requires it.
+    """
     if args.boot_test:
-        runner.launch(boot_test_only=True)
-        return runner.boottest_run(args.boot_test, timeout)
+        target_state = qemu.RunnerState.BOOTLOADER
     elif args.shell_command:
-        runner.launch(boot_test_only=False)
-        return runner.androidtest_run(args.shell_command, timeout)
+        target_state = qemu.RunnerState.ANDROID
     else:
         raise qemu_error.ConfigError(
             "Command must request exactly one Android or boot test to run")
+
+    # Due to limitations in the test runner, always reboot between boot tests
+    if (runner.state != target_state or
+            runner.state == qemu.RunnerState.BOOTLOADER):
+        runner.reboot(target_state)
+
+
+def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
+    args = build_argparser().parse_args(cmd)
+    _check_args(args)
+    _prepare_runner_for_test(runner, args)
+
+    timeout = args.timeout if args.timeout else runner.default_timeout
+    if args.boot_test:
+        return runner.boottest_run(args.boot_test, timeout)
+    elif args.shell_command:
+        return runner.androidtest_run(args.shell_command, timeout)
 
 
 def shutdown(runner: Optional[qemu.Runner]):
