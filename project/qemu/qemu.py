@@ -6,6 +6,8 @@ import fcntl
 import json
 import os
 from textwrap import dedent
+from typing import Optional, List
+
 import qemu_options
 import re
 import select
@@ -934,7 +936,9 @@ class Runner(object):
             raise
 
 
-    def run(self, boot_tests=[], android_tests=[], timeout=None):
+    def run(self, boot_tests: Optional[List] = None,
+            android_tests: Optional[List] = None,
+            timeout: Optional[int] = None):
         """Run boot or android tests.
 
         Runs boot_tests through test_runner, android_tests through ADB,
@@ -957,47 +961,45 @@ class Runner(object):
           provided in the config.
         """
         assert self.state == RunnerState.OFF
-        target_state = (RunnerState.BOOTLOADER if boot_tests else
-                        RunnerState.ANDROID)
-        android_tests = android_tests if android_tests else []
         self.config.check_config(self.interactive, boot_tests, android_tests)
+
+        if boot_tests and android_tests:
+            raise RunnerGenericError(
+                "Cannot run boot tests and android tests in the same "
+                "QEMU instance")
+
+        if boot_tests and len(boot_tests) > 1:
+            raise RunnerGenericError(
+                "Can only run a single boot test at a time")
 
         timeout = timeout if timeout else self.default_timeout
         try:
-            self.launch(target_state)
+            self.launch(RunnerState.BOOTLOADER if boot_tests else
+                        RunnerState.ANDROID)
 
-            match (boot_tests, android_tests):
-                case ([], []):
-                    pass  # nothing to do
-                case (boot_test, []) if len(boot_test) == 1:
-                    return [self.boottest_run(boot_test, timeout)]
-                case (boot_tests, []) if len(boot_tests) > 1:
-                    raise RunnerGenericError(
-                        "Can only run a single boot test at a time")
-                case ([], android_tests):
-                    session: RunnerSession = self.session
-                    test_results = []
+            if boot_tests:
+                return [self.boottest_run(boot_tests, timeout)]
 
-                    try:
-                        for android_test in android_tests:
-                            test_result = self.androidtest_run([android_test],
-                                                               timeout)
-                            test_results.append(test_result)
-                            if test_result:
-                                session.has_error = True
-                                break
-                        return test_results
-                    # Finally is used here to ensure that ADB failures do not
-                    # take away the user's serial console in interactive mode.
-                    finally:
-                        if self.interactive:
-                            # The user is responsible for quitting QEMU
-                            session.qemu_proc.wait()
+            if android_tests:
+                session: RunnerSession = self.session
+                test_results = []
 
-                case _:
-                    assert boot_tests != [] and android_tests != []
-                    raise RunnerGenericError(
-                        "Cannot run boot tests and android tests in the same "
-                        "QEMU instance")
+                try:
+                    for android_test in android_tests:
+                        test_result = self.androidtest_run([android_test],
+                                                           timeout)
+                        test_results.append(test_result)
+                        if test_result:
+                            session.has_error = True
+                            break
+                    return test_results
+                # Finally is used here to ensure that ADB failures do not
+                # take away the user's serial console in interactive mode.
+                finally:
+                    if self.interactive:
+                        # The user is responsible for quitting QEMU
+                        session.qemu_proc.wait()
+
+            return []  # nothing to do
         finally:
             self.shutdown()
