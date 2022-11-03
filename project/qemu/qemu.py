@@ -19,7 +19,10 @@ import tempfile
 import time
 import threading
 
-from qemu_error import AdbFailure, ConfigError, RunnerGenericError, RunnerError, Timeout
+from typing import Optional, List
+
+import qemu_options  # pylint: disable=import-error
+from qemu_error import AdbFailure, ConfigError, RunnerGenericError, Timeout
 
 
 # ADB expects its first console on 5554, and control on 5555
@@ -935,10 +938,9 @@ class Runner(object):
             self.shutdown()
             raise
 
-
     def run(self, boot_tests: Optional[List] = None,
             android_tests: Optional[List] = None,
-            timeout: Optional[int] = None):
+            timeout: Optional[int] = None) -> List[int]:
         """Run boot or android tests.
 
         Runs boot_tests through test_runner, android_tests through ADB,
@@ -976,30 +978,25 @@ class Runner(object):
         try:
             self.launch(RunnerState.BOOTLOADER if boot_tests else
                         RunnerState.ANDROID)
+            test_results = []
 
             if boot_tests:
-                return [self.boottest_run(boot_tests, timeout)]
+                test_results.append(self.boottest_run(boot_tests, timeout))
 
             if android_tests:
-                session: RunnerSession = self.session
-                test_results = []
+                for android_test in android_tests:
+                    test_result = self.androidtest_run([android_test], timeout)
+                    test_results.append(test_result)
+                    if test_result:
+                        assert self.session  # appease mypy
+                        self.session.has_error = True
+                        break
 
-                try:
-                    for android_test in android_tests:
-                        test_result = self.androidtest_run([android_test],
-                                                           timeout)
-                        test_results.append(test_result)
-                        if test_result:
-                            session.has_error = True
-                            break
-                    return test_results
-                # Finally is used here to ensure that ADB failures do not
-                # take away the user's serial console in interactive mode.
-                finally:
-                    if self.interactive:
-                        # The user is responsible for quitting QEMU
-                        session.qemu_proc.wait()
-
-            return []  # nothing to do
+            return test_results
         finally:
+            # The wait on QEMU is done here to ensure that ADB failures do not
+            # take away the user's serial console in interactive mode.
+            if self.interactive and self.session:
+                # The user is responsible for quitting QEMU
+                self.session.qemu_proc.wait()
             self.shutdown()
