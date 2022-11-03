@@ -25,61 +25,64 @@ class QemuArm64Options(object):
         self.config = config
 
     def rpmb_data_path(self):
-        return "%s/RPMB_DATA" % self.config.atf
+        return f"{self.config.atf}/RPMB_DATA"
 
     def rpmb_options(self, sock):
         return [
             "-device", "virtio-serial",
             "-device", "virtserialport,chardev=rpmb0,name=rpmb0",
-            "-chardev", "socket,id=rpmb0,path=%s" % sock]
+            "-chardev", f"socket,id=rpmb0,path={sock}"]
 
     def gen_dtb(self, args, dtb_tmp_file):
         """Computes a trusty device tree, returning a file for it"""
         with tempfile.NamedTemporaryFile() as dtb_gen:
             dump_dtb_cmd = [
                 self.config.qemu, "-machine",
-                "%s,dumpdtb=%s" % (self.MACHINE, dtb_gen.name)
+                f"{self.MACHINE},dumpdtb={dtb_gen.name}"
             ] + [arg for arg in args if arg != "-S"]
             returncode = subprocess.call(dump_dtb_cmd)
             if returncode != 0:
-                raise RunnerGenericError("dumping dtb failed with %d" %
-                                         returncode)
-            dtc = "%s/scripts/dtc/dtc" % self.config.linux
+                raise RunnerGenericError(
+                    f"dumping dtb failed with {returncode}")
+            dtc = f"{self.config.linux}/scripts/dtc/dtc"
             dtb_to_dts_cmd = [dtc, "-q", "-O", "dts", dtb_gen.name]
-            dtb_to_dts = subprocess.Popen(dtb_to_dts_cmd,
-                                          stdout=subprocess.PIPE,
-                                          universal_newlines=True)
-            dts = dtb_to_dts.communicate()[0]
-            if dtb_to_dts.returncode != 0:
-                raise RunnerGenericError("dtb_to_dts failed with %d" %
-                                         dtb_to_dts.returncode)
+            # pylint: disable=consider-using-with
+            with subprocess.Popen(dtb_to_dts_cmd,
+                                  stdout=subprocess.PIPE,
+                                  universal_newlines=True) as dtb_to_dts:
+                dts = dtb_to_dts.communicate()[0]
+                if dtb_to_dts.returncode != 0:
+                    raise RunnerGenericError(
+                        f"dtb_to_dts failed with {dtb_to_dts.returncode}")
 
-        firmware = "%s/firmware.android.dts" % self.config.atf
-        with open(firmware, "r") as firmware_file:
+        firmware = f"{self.config.atf}/firmware.android.dts"
+        with open(firmware, "r", encoding="utf-8") as firmware_file:
             dts += firmware_file.read()
 
         # Subprocess closes dtb, so we can't allow it to autodelete
         dtb = dtb_tmp_file
         dts_to_dtb_cmd = [dtc, "-q", "-O", "dtb"]
-        dts_to_dtb = subprocess.Popen(dts_to_dtb_cmd,
-                                      stdin=subprocess.PIPE,
-                                      stdout=dtb,
-                                      universal_newlines=True)
-        dts_to_dtb.communicate(dts)
-        dts_to_dtb_ret = dts_to_dtb.wait()
+        with subprocess.Popen(dts_to_dtb_cmd,
+                              stdin=subprocess.PIPE,
+                              stdout=dtb,
+                              universal_newlines=True) as dts_to_dtb:
+            dts_to_dtb.communicate(dts)
+            dts_to_dtb_ret = dts_to_dtb.wait()
+
         if dts_to_dtb_ret:
-            raise RunnerGenericError("dts_to_dtb failed with %d" % dts_to_dtb_ret)
+            raise RunnerGenericError(f"dts_to_dtb failed with {dts_to_dtb_ret}")
         return ["-dtb", dtb.name]
 
     def drive_args(self, image, index):
         """Generates arguments for mapping a drive"""
         index_letter = chr(ord('a') + index)
-        image_dir = "%s/target/product/trusty" % self.config.android
+        image_dir = f"{self.config.android}/target/product/trusty"
         return [
             "-drive",
-            "file=%s/%s.img,index=%d,if=none,id=hd%s,format=raw,snapshot=on" %
-            (image_dir, image, index, index_letter), "-device",
-            "virtio-blk-device,drive=hd%s" % index_letter
+            # pylint: disable=line-too-long
+            f"file={image_dir}/{image}.img,index={index},if=none,id=hd{index_letter},format=raw,snapshot=on",
+            "-device",
+            f"virtio-blk-device,drive=hd{index_letter}"
         ]
 
     def android_drives_args(self):
@@ -98,14 +101,14 @@ class QemuArm64Options(object):
         return list(self.BASIC_ARGS)
 
     def bios_options(self):
-        return ["-bios", "%s/bl1.bin" % self.config.atf]
+        return ["-bios", f"{self.config.atf}/bl1.bin"]
 
     def linux_options(self):
         return [
-            "-kernel", "%s/arch/%s/boot/Image" % (self.config.linux,
-                                                  self.config.linux_arch),
+            "-kernel",
+            f"{self.config.linux}/arch/{self.config.linux_arch}/boot/Image",
             "-append", self.LINUX_ARGS
         ]
 
     def android_trusty_user_data(self):
-        return "%s/target/product/trusty/data" % self.config.android
+        return f"{self.config.android}/target/product/trusty/data"
