@@ -6,9 +6,6 @@ import fcntl
 import json
 import os
 from textwrap import dedent
-from typing import Optional, List
-
-import qemu_options
 import re
 import select
 import socket
@@ -32,11 +29,11 @@ ADB_BASE_PORT = 5554
 def find_android_build_dir(android):
     if os.path.exists(f"{android}/target/product/trusty"):
         return android
-    elif os.path.exists(f"{android}/out/target/product/trusty"):
+    if os.path.exists(f"{android}/out/target/product/trusty"):
         return f"{android}/out"
-    else:
-        print(f"{android} not an Android source or build directory")
-        sys.exit(1)
+
+    print(f"{android} not an Android source or build directory")
+    sys.exit(1)
 
 
 class Config(object):
@@ -70,6 +67,7 @@ class Config(object):
             config_dict = json.load(config)
 
         self.script_dir = os.path.dirname(os.path.realpath(__file__))
+
         def abspath(config_key, default_value=None):
             if config_value := config_dict.get(config_key, default_value):
                 return os.path.join(self.script_dir, config_value)
@@ -229,6 +227,8 @@ class QEMUCommandPipe(object):
         except IOError as e:
             print("qmp_command error ignored", e)
 
+        return None
+
     def qmp_execute(self, execute, arguments=None):
         """Send a qmp execute command and return result."""
         cmp_command = {"execute": execute}
@@ -258,7 +258,7 @@ def qemu_handle_error(command_pipe, debug_on_error):
         command_pipe.monitor_command("gdbserver")
         print("Connect gdb, press enter when done ")
         select.select([sys.stdin], [], [])
-        input("\n")
+        input("\n")  # pylint: disable=bad-builtin
 
 
 def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
@@ -288,14 +288,13 @@ def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
 
         command_pipe.close()
 
-    else:
+    elif qemu_proc and (qemu_proc.poll() is None):
         # This was an interactive run or a boot test
         # QEMU should not be running at this point
-        if qemu_proc and (qemu_proc.poll() is None):
-            print("QEMU still running with no command channel")
-            qemu_proc.kill()
-            qemu_proc.wait()
-            unclean_exit = True
+        print("QEMU still running with no command channel")
+        qemu_proc.kill()
+        qemu_proc.wait()
+        unclean_exit = True
     return unclean_exit
 
 class RunnerSession:
@@ -312,15 +311,15 @@ class RunnerSession:
 
     def get_qemu_arg_temp_file(self):
         """Returns a temp file that will be deleted after qemu exits."""
-        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp = tempfile.NamedTemporaryFile(delete=False)  # pylint: disable=consider-using-with
         self.temp_files.append(tmp.name)
         return tmp
 
 
 class RunnerState(enum.Enum):
-    OFF = 0,
-    BOOTLOADER = 1,
-    ANDROID = 2,
+    OFF = 0
+    BOOTLOADER = 1
+    ANDROID = 2
 
 
 class Runner(object):
@@ -345,13 +344,14 @@ class Runner(object):
         self.use_rpmb = rpmb
         self.rpmb_proc = None
         self.rpmb_sock_dir = None
+        self.msg_sock = None
         self.msg_sock_conn = None
         self.msg_sock_dir = None
         self.debug_on_error = debug_on_error
         self.dump_stdout_on_error = False
         self.qemu_arch_options = None
-        self.default_timeout = 60 * 10 # 10 Minutes
-        self.session: RunnerSession = None
+        self.default_timeout = 60 * 10  # 10 Minutes
+        self.session: Optional[RunnerSession] = None
         self.state = RunnerState.OFF
 
         # If we're not verbose or interactive, squelch command output
@@ -359,7 +359,7 @@ class Runner(object):
             self.stdout = None
             self.stderr = None
         else:
-            self.stdout = tempfile.TemporaryFile()
+            self.stdout = tempfile.TemporaryFile()  # pylint: disable=consider-using-with
             self.stderr = subprocess.STDOUT
             self.dump_stdout_on_error = True
 
@@ -387,7 +387,7 @@ class Runner(object):
         """Returns a temp file that will be deleted after qemu exits."""
         # pylint: disable=consider-using-with
         tmp = tempfile.NamedTemporaryFile(delete=False)
-        self.temp_files.append(tmp.name)
+        self.session.temp_files.append(tmp.name)
         return tmp
 
     def rpmb_up(self):
@@ -481,9 +481,9 @@ class Runner(object):
     def msg_channel_recv(self):
         if self.msg_sock_conn:
             return self.msg_sock_conn.recv(64)
-        else:
-            # error cases: channel not yet initialized or channel torn down
-            return bytes()
+
+        # error cases: channel not yet initialized or channel torn down
+        return bytes()
 
     def msg_channel_close(self):
         if self.msg_sock_conn:
@@ -601,13 +601,14 @@ class Runner(object):
         try:
             if not test_timeout:
                 test_timeout = self.default_timeout
+
             def on_adb_timeout():
-                print("adb Timed out (%d s)" % test_timeout)
+                print(f"adb Timed out ({test_timeout} s)")
                 qemu_handle_error(command_pipe=session.command_pipe,
                                   debug_on_error=self.debug_on_error)
 
             return self.adb(["shell"] + cmd, timeout=test_timeout,
-                                on_timeout=on_adb_timeout, force_output=True)
+                            on_timeout=on_adb_timeout, force_output=True)
         except:
             session.has_error = True
             raise
