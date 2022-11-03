@@ -7,7 +7,8 @@ from uuid import UUID
 SEC_DRAM_BASE = 0xe200000
 TRUSTY_PROJECT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 TRUSTY_PROJECT = (
-    re.match(r"^.*/build-([^/]+)$", TRUSTY_PROJECT_FOLDER).group(1)
+    # pylint: disable=line-too-long
+    re.match(r"^.*/build-([^/]+)$", TRUSTY_PROJECT_FOLDER).group(1)  #type: ignore
 )
 KERNEL_ELF_FILE = f"{TRUSTY_PROJECT_FOLDER}/lk.elf"
 ADDR_SIZE_BITS = 64
@@ -15,8 +16,7 @@ ARCH_ID = "aarch64"
 
 
 def kernel_entry_point(debugger):
-    """
-    Finds the starting virtual address of the kernel.
+    """Finds the starting virtual address of the kernel.
 
     Assumes the kernel is the first target loaded into the debugger.
     """
@@ -27,8 +27,7 @@ def kernel_entry_point(debugger):
 
 
 def lldb_module_offset(original_entry_point, new_entry_point):
-    """
-    Calculate an LLDB module load offset.
+    """Calculate an LLDB module load offset.
 
     Because LLDB only support sliding ELF entry points, not setting them, this
     function calculates the appropriate offset given the original entry point
@@ -60,6 +59,7 @@ def move_kernel_lldb_module(debugger, new_entry_point):
 
 def parse_uuid_bytes(uuid_bytes):
     """Parse a UUID from a manifest file header's bytes."""
+    # pylint: disable=line-too-long
     return UUID(
         f"{uuid_bytes[3]:02x}{uuid_bytes[2]:02x}{uuid_bytes[1]:02x}{uuid_bytes[0]:02x}-"
         f"{uuid_bytes[5]:02x}{uuid_bytes[4]:02x}-"
@@ -71,11 +71,15 @@ def parse_uuid_bytes(uuid_bytes):
 
 def parse_uuid_struct(uuid_struct):
     """Parse a UUID from a Trusty UUID struct pulled from LLDB."""
-    time_low = uuid_struct.GetChildMemberWithName("time_low").GetValueAsUnsigned()
-    time_mid = uuid_struct.GetChildMemberWithName("time_mid").GetValueAsUnsigned()
-    time_hi_and_version = uuid_struct.GetChildMemberWithName("time_hi_and_version").GetValueAsUnsigned()
+    time_low = uuid_struct.GetChildMemberWithName(
+        "time_low").GetValueAsUnsigned()
+    time_mid = uuid_struct.GetChildMemberWithName(
+        "time_mid").GetValueAsUnsigned()
+    time_hi_and_version = uuid_struct.GetChildMemberWithName(
+        "time_hi_and_version").GetValueAsUnsigned()
     clock_seq_and_node = [
-        uuid_struct.GetChildMemberWithName("clock_seq_and_node").GetChildAtIndex(i).GetValueAsUnsigned()
+        uuid_struct.GetChildMemberWithName(
+            "clock_seq_and_node").GetChildAtIndex(i).GetValueAsUnsigned()
         for i in range(8)
     ]
 
@@ -93,11 +97,13 @@ uuid_symbol_map = None
 
 
 def init_symbols_file_map():
-    global uuid_symbol_map
+    global uuid_symbol_map  # pylint: disable=global-statement
 
     uuid_symbol_map = {}
 
-    for manifest_path in glob(f"{TRUSTY_PROJECT_FOLDER}/user_tasks/**/*.manifest", recursive=True):
+    for manifest_path in glob(
+            f"{TRUSTY_PROJECT_FOLDER}/user_tasks/**/*.manifest",
+            recursive=True):
         symbol_path = manifest_path.removesuffix(".manifest") + ".syms.elf"
 
         if not os.path.exists(symbol_path):
@@ -110,14 +116,17 @@ def init_symbols_file_map():
         uuid_symbol_map[uuid] = symbol_path
 
 
-def trusty_thread_start_hook(debugger, _command, context, result, _internal_dict):
+def trusty_thread_start_hook(debugger, _command, context, result,
+                             _internal_dict):
+    """Breakpoint command for extracting TA load_biases and loading
+     corresponding ELF files with those load biases.
     """
-    Breakpoint command for extracting TA load_biases and loading corresponding
-    ELF files with those load biases.
-    """
-    trusty_app = context.GetFrame().FindVariable("trusty_thread").GetChildMemberWithName("app")
-    load_bias = trusty_app.GetChildMemberWithName("load_bias").GetValueAsUnsigned()
-    uuid_struct = trusty_app.GetChildMemberWithName("props").GetChildMemberWithName("uuid")
+    trusty_app = context.GetFrame().FindVariable(
+        "trusty_thread").GetChildMemberWithName("app")
+    load_bias = trusty_app.GetChildMemberWithName(
+        "load_bias").GetValueAsUnsigned()
+    uuid_struct = trusty_app.GetChildMemberWithName(
+        "props").GetChildMemberWithName("uuid")
 
     uuid = parse_uuid_struct(uuid_struct)
 
@@ -135,7 +144,8 @@ def trusty_thread_start_hook(debugger, _command, context, result, _internal_dict
     debugger.HandleCommand("continue")
 
 
-def initialize_kernel_lldb_module(debugger, _command, _context, result, _internal_dict):
+def initialize_kernel_lldb_module(debugger, _command, _context, result,
+                                  _internal_dict):
     print("Loading kernel ELF file", file=result)
     debugger.HandleCommand(f"file -a {ARCH_ID} {KERNEL_ELF_FILE}")
 
@@ -155,9 +165,8 @@ def relocate_kernel_hook(debugger, _command, context, result, _internal_dict):
 
 
 def register_command(debugger, function):
-    debugger.HandleCommand(
-        f"command script add -f {__name__}.{function.__name__} {function.__name__}"
-    )
+    fname = function.__name__
+    debugger.HandleCommand(f"command script add -f {__name__}.{fname} {fname}")
 
 
 def __lldb_init_module(debugger, _internal_dict):

@@ -75,8 +75,11 @@ def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
     timeout = args.timeout if args.timeout else runner.default_timeout
     if args.boot_test:
         return runner.boottest_run(args.boot_test, timeout)
-    elif args.shell_command:
+    if args.shell_command:
         return runner.androidtest_run(args.shell_command, timeout)
+
+    raise qemu.RunnerGenericError(
+        "Command contained neither a boot test nor an Android test to run")
 
 
 def shutdown(runner: Optional[qemu.Runner]):
@@ -136,7 +139,7 @@ def main():
             sys.exit(1)
         else:
             sys.exit(0)
-    except qemu.RunnerError as exn:
+    except qemu_error.RunnerError as exn:
         print(exn)
         sys.exit(2)
 

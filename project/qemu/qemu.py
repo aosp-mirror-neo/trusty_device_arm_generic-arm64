@@ -18,7 +18,7 @@ import threading
 
 from typing import Optional, List
 
-import qemu_options  # pylint: disable=import-error
+import qemu_options
 from qemu_error import AdbFailure, ConfigError, RunnerGenericError, Timeout
 
 
@@ -372,6 +372,7 @@ class Runner(object):
         if self.config.arch in ("arm64", "arm"):
             self.qemu_arch_options = qemu_options.QemuArm64Options(self.config)
         elif self.config.arch == "x86_64":
+            # pylint: disable=no-member
             self.qemu_arch_options = qemu_options.QemuX86_64Options(self.config)
         else:
             raise ConfigError("Architecture unspecified or unsupported!")
