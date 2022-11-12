@@ -60,10 +60,19 @@ QEMU_AOSP_DISABLES := \
             --disable-vhost-net \
             --disable-opengl \
 
+# Warnings which pollute the build output and which can make us miss
+# warnings in non-external code that we should be paying attention to.
+QEMU_SUPPRESSED_WARNINGS := \
+    -Wno-address-of-packed-member \
+    -Wno-format-truncation \
+    -Wno-stringop-truncation \
+    -Wno-array-bounds \
+
 $(QEMU_MAKEFILE): QEMU_ROOT:=$(QEMU_ROOT)
 $(QEMU_MAKEFILE): QEMU_BUILD_BASE:=$(QEMU_BUILD_BASE)
 $(QEMU_MAKEFILE): QEMU_TARGET:=$(QEMU_TARGET)
 $(QEMU_MAKEFILE): QEMU_AOSP_DISABLES:=$(QEMU_AOSP_DISABLES)
+$(QEMU_MAKEFILE): QEMU_SUPPRESSED_WARNINGS:=$(QEMU_SUPPRESSED_WARNINGS)
 $(QEMU_MAKEFILE):
 	mkdir -p $(QEMU_BUILD_BASE)
 	#--with-git=true sets the "git" program to /bin/true - it essentially disables git
@@ -73,6 +82,7 @@ $(QEMU_MAKEFILE):
 	# some hosts compiler will complain about stringop truncation.
 	cd $(QEMU_BUILD_BASE) && $(abspath $(QEMU_ROOT)/configure) \
 		--target-list=$(QEMU_TARGET) --with-git=true --disable-werror \
+		--extra-cflags="$(QEMU_SUPPRESSED_WARNINGS)" \
 		--disable-gcrypt --disable-vnc-png $(QEMU_AOSP_DISABLES) \
 		--python=$(BUILDTOOLS_BINDIR)/py3-cmd
 
@@ -87,3 +97,4 @@ QEMU_ARCH:=
 QEMU_ROOT:=
 QEMU_TARGET:=
 QEMU_AOSP_DISABLES:=
+QEMU_SUPPRESSED_WARNINGS:=
