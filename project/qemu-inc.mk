@@ -195,6 +195,9 @@ $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
 ATF_GENERATED_FILES := \
 	$(ATF_OUT_DIR)/RPMB_DATA \
 	$(ATF_OUT_DIR)/metadata.img \
+	$(ATF_OUT_DIR)/goldfish_reserved.img \
+	$(ATF_OUT_DIR)/trusty_userdata.img \
+	$(ATF_OUT_DIR)/trusty_persist.img \
 
 $(ATF_OUT_DIR)/RPMB_DATA: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
@@ -269,6 +272,21 @@ $(ATF_OUT_DIR)/metadata.img: MKE2FS := $(MKE2FS)
 $(ATF_OUT_DIR)/metadata.img: | $(ANDROID_OUT_SRC_DIR)
 	@echo Create metadata.img
 	MKE2FS_CONFIG= $(MKE2FS) -t ext4 -F $@ -O has_journal,extent,huge_file,dir_nlink,extra_isize,uninit_bg 16m
+
+# This image is not used, but /dev/block/vde is configured in
+# device/generic/goldfish/sepolicy/vendor/file_contexts as system_block_device
+# in a way that we cannot override.
+$(ATF_OUT_DIR)/goldfish_reserved.img:
+	@echo Create goldfish_reserved.img
+	dd if=/dev/zero of=$@ bs=4k count=1
+
+$(ATF_OUT_DIR)/trusty_userdata.img:
+	@echo Create trusty_userdata.img
+	dd if=/dev/zero of=$@ bs=1024k count=16
+
+$(ATF_OUT_DIR)/trusty_persist.img:
+	@echo Create trusty_persist.img
+	dd if=/dev/zero of=$@ bs=1024k count=16
 
 QEMU_SCRIPTS := \
 	$(ALLOC_ADB_PORTS_PY) \

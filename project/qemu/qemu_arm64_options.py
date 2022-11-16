@@ -204,6 +204,9 @@ class QemuArm64Options(object):
 
     def drives(self) -> list[QemuDrive]:
         return [
+            QemuDrive("trusty_userdata", 6, self.config.atf, read_only=False),
+            QemuDrive("trusty_persist", 5, self.config.atf, read_only=False, persistent=True),
+            QemuDrive("goldfish_reserved", 4, self.config.atf, read_only=False),
             QemuDrive("metadata", 3, self.config.atf, read_only=False),
             QemuDrive(
                 "userdata", 2, self.config.android_image_dir, read_only=False
