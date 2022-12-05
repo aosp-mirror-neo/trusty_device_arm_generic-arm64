@@ -108,6 +108,19 @@ ifneq (true,$(call TOBOOL,$(USER_SCS_ENABLED)))
 USER_STACK_PROTECTOR ?= true
 endif
 
+# Allow the KeyMint TA implementation to be selected at build time.  This needs to be
+# done in sync with the HAL service implementation included in Android.  Possible values are:
+#
+# - Rust implementation:   export TRUSTY_KEYMINT_IMPL=rust
+# - C++ implementation:    (any other value of TRUSTY_KEYMINT_IMPL)
+
+ifeq ($(TRUSTY_KEYMINT_IMPL),rust)
+    TRUSTY_KEYMINT_USER_TASK := trusty/user/app/keymint/app
+else
+    # Default to the C++ implementation
+    TRUSTY_KEYMINT_USER_TASK := trusty/user/app/keymaster
+endif
+
 #
 # Modules to be compiled into lk.bin
 #
@@ -146,8 +159,7 @@ TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/cast-auth/app \
 	trusty/user/app/confirmationui \
 	trusty/user/app/gatekeeper \
-	trusty/user/app/keymaster \
-	trusty/user/app/keymint/app \
+	$(TRUSTY_KEYMINT_USER_TASK) \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
