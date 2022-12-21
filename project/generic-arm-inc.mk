@@ -161,6 +161,7 @@ TRUSTY_BUILTIN_USER_TASKS := \
 
 MODULES += \
 	trusty/user/base/app/device_tree/tests/dtb \
+	trusty/user/base/app/device_tree/tests/dtb/base \
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
 TRUSTY_ALL_USER_TASKS += \
