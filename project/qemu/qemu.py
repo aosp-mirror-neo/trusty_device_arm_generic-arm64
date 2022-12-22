@@ -608,8 +608,12 @@ class Runner(object):
                 qemu_handle_error(command_pipe=session.command_pipe,
                                   debug_on_error=self.debug_on_error)
 
-            return self.adb(["shell"] + cmd, timeout=test_timeout,
-                            on_timeout=on_adb_timeout, force_output=True)
+            test_result = self.adb(["shell"] + cmd, timeout=test_timeout,
+                                   on_timeout=on_adb_timeout, force_output=True)
+            if test_result:
+                session.has_error = True
+
+            return test_result
         except:
             session.has_error = True
             raise
@@ -990,8 +994,6 @@ class Runner(object):
                     test_result = self.androidtest_run([android_test], timeout)
                     test_results.append(test_result)
                     if test_result:
-                        assert self.session  # appease mypy
-                        self.session.has_error = True
                         break
 
             return test_results
