@@ -14,7 +14,6 @@
 
 # Clang doesn't support combination of sancov + CFI
 USER_CFI_ENABLED := false
-KERNEL_CFI_ENABLED := false
 CFI_DIAGNOSTICS := false
 
 USER_COVERAGE_ENABLED := true
