@@ -20,6 +20,7 @@ RELEASE_BUILD ?= false
 include project/generic-arm-inc.mk
 include trusty/kernel/kerneltests-inc.mk
 include trusty/user/base/usertests-inc.mk
+include trusty/user/base/usertests-rust-inc.mk
 
 # Only enable pattern init in test-builds, as it has runtime overhead
 # and intentionally attempts to induce crashes for bad assumptions.
