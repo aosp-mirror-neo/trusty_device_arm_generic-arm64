@@ -40,8 +40,8 @@ $(QEMU_PACKAGE_LICENSE): $(QEMU_PACKAGE_LICENSE_FILES)
 	$(NOECHO)rm -f $@.tmp
 	$(NOECHO)cat $(LOCAL_DIR)/../LICENSE >> $@.tmp;
 	$(NOECHO)for license in $^; do \
-		echo -e "\n-------------------------------------------------------------------" >> $@.tmp;\
-		echo -e "Copied from $$license\n\n" >> $@.tmp;\
+		printf "\n-------------------------------------------------------------------\n" >> $@.tmp;\
+		printf "Copied from $$license\n\n\n" >> $@.tmp;\
 		cat "$$license" >> $@.tmp;\
 		done
 	$(call TESTANDREPLACEFILE,$@.tmp,$@)
