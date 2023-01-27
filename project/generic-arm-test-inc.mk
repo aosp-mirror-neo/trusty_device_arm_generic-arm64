@@ -13,6 +13,12 @@
 # limitations under the License.
 #
 
+# Enabling this changes benchmark output to be in json format.
+# See go/trusty-benchmark-json-output for the schema.
+# Build with BENCHMARK_MACHINE_READABLE=1 to enable.
+BENCHMARK_MACHINE_READABLE?=0
+GLOBAL_DEFINES += BENCHMARK_MACHINE_READABLE=$(BENCHMARK_MACHINE_READABLE)
+
 UBSAN_ENABLED ?= true
 
 RELEASE_BUILD ?= false
