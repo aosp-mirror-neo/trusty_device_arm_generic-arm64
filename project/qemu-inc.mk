@@ -40,6 +40,9 @@ MODULES += \
 
 RPMB_DEV := $(BUILDDIR)/host_tools/rpmb_dev
 
+# Enable unittests that should only run in the emulator
+STORAGE_UNITTEST_ON_EMULATOR := true
+
 PROJECT_KEYS_DIR := $(PROJECT_QEMU_INC_LOCAL_DIR)/keys
 
 APPLOADER_SIGN_PRIVATE_KEY_0_FILE := \
