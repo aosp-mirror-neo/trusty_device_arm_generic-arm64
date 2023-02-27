@@ -15,5 +15,8 @@
 
 QEMU_TRUSTY_PROJECT := generic-arm64-test-debug
 
+# Enable BTI
+KERNEL_BTI_ENABLED ?= true
+
 include project/debugging-inc.mk
 include project/qemu-inc.mk
