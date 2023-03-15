@@ -27,6 +27,7 @@ include project/generic-arm-inc.mk
 
 include frameworks/native/libs/binder/trusty/usertests-inc.mk
 include trusty/kernel/kerneltests-inc.mk
+include trusty/user/app/sample/stats-test/usertests-inc.mk
 include trusty/user/base/usertests-inc.mk
 include trusty/user/base/usertests-rust-inc.mk
 
