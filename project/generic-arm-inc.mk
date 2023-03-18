@@ -85,6 +85,9 @@ KERNEL_LTO_ENABLED ?= true
 USER_CFI_ENABLED ?= true
 KERNEL_CFI_ENABLED ?= true
 
+# Storage should send error reports to the metrics service
+STORAGE_ENABLE_ERROR_REPORTING := true
+
 ifeq ($(shell expr $(DEBUG) \>= 2), 1)
 CFI_DIAGNOSTICS ?= true
 endif
