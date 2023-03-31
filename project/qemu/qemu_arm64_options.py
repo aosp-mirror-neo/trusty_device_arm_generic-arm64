@@ -12,7 +12,7 @@ from qemu_error import RunnerGenericError
 logger = logging.getLogger(__name__)
 
 def _find_dtc():
-    for search_dir in ["out/host/linux-x86/bin", "prebuilts/misc/linux-x86/dtc", "bin"]:
+    for search_dir in ["out/host/linux-x86/bin", "prebuilts/misc/linux-x86/dtc", "bin", "linux-build/scripts/dtc"]:
         path = os.path.join(search_dir, "dtc")
         if os.path.exists(path):
             return path
