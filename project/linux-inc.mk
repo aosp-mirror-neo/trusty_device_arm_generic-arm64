@@ -33,7 +33,7 @@ else
 LINUX_CLANG_TRIPLE := $(LINUX_ARCH)-linux-gnu-
 endif
 
-LINUX_SRC := external/linux
+LINUX_SRC := $(call FIND_EXTERNAL,linux)
 LINUX_CONFIG_DIR = $(LINUX_SRC)/arch/$(LINUX_ARCH)/configs
 
 # Preserve compatibility with architectures without GKI

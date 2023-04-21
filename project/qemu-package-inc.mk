@@ -27,10 +27,12 @@ QEMU_PACKAGE_ZIP := $(BUILDDIR)/trusty_qemu_package.zip
 QEMU_PACKAGE_LICENSE := $(BUILDDIR)/LICENSE
 
 QEMU_PACKAGE_LICENSE_FILES := \
-	external/qemu/LICENSE external/qemu/COPYING \
-	external/linux/COPYING external/linux/LICENSES/preferred/GPL-2.0 \
-	external/linux/LICENSES/exceptions/Linux-syscall-note \
-	external/arm-trusted-firmware/docs/license.rst \
+	$(call FIND_EXTERNAL,qemu/LICENSE) \
+	$(call FIND_EXTERNAL,qemu/COPYING) \
+	$(call FIND_EXTERNAL,linux/COPYING) \
+	$(call FIND_EXTERNAL,linux/LICENSES/preferred/GPL-2.0) \
+	$(call FIND_EXTERNAL,linux/LICENSES/exceptions/Linux-syscall-note) \
+	$(call FIND_EXTERNAL,arm-trusted-firmware/docs/license.rst) \
 
 # TODO: Unify with SDK license construction when it lands
 $(QEMU_PACKAGE_LICENSE): LOCAL_DIR := $(GET_LOCAL_DIR)

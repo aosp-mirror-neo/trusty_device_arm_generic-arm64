@@ -77,10 +77,10 @@ ATF_PLAT := qemu
 ATF_WITH_TRUSTY_GENERIC_SERVICES := true
 ATF_BUILD_BASE := $(abspath $(BUILDDIR)/atf)
 ATF_TOOLCHAIN_PREFIX := $(ARCH_arm64_TOOLCHAIN_PREFIX)
-ATF_ROOT := external/arm-trusted-firmware
+ATF_ROOT := $(call FIND_EXTERNAL,arm-trusted-firmware)
 include project/qemu-atf-inc.mk
 
-QEMU_ROOT := external/qemu
+QEMU_ROOT := $(call FIND_EXTERNAL,qemu)
 QEMU_BUILD_BASE := $(abspath $(BUILDDIR)/qemu-build)
 QEMU_ARCH := aarch64
 QEMU_TARGET := aarch64-softmmu,arm-softmmu
