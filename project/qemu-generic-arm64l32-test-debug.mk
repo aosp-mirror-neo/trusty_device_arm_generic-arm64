@@ -16,5 +16,8 @@
 QEMU_TRUSTY_PROJECT := generic-arm64-test-debug
 LINUX_ARCH := arm
 
+# D-cache lines are 64 bytes on QEMU arm64
+GLOBAL_DEFINES += CACHE_LINE=64
+
 include project/debugging-inc.mk
 include project/qemu-inc.mk
