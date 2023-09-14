@@ -62,17 +62,20 @@ QEMU_AOSP_DISABLES := \
 
 # Warnings which pollute the build output and which can make us miss
 # warnings in non-external code that we should be paying attention to.
-QEMU_SUPPRESSED_WARNINGS := \
+QEMU_EXTRA_CFLAGS := \
     -Wno-address-of-packed-member \
     -Wno-format-truncation \
     -Wno-stringop-truncation \
     -Wno-array-bounds \
 
+# Newer capstone releases have the headers under include/capstone
+QEMU_EXTRA_CFLAGS += -I$(TRUSTY_TOP)/$(QEMU_ROOT)/capstone/include/capstone
+
 $(QEMU_MAKEFILE): QEMU_ROOT:=$(QEMU_ROOT)
 $(QEMU_MAKEFILE): QEMU_BUILD_BASE:=$(QEMU_BUILD_BASE)
 $(QEMU_MAKEFILE): QEMU_TARGET:=$(QEMU_TARGET)
 $(QEMU_MAKEFILE): QEMU_AOSP_DISABLES:=$(QEMU_AOSP_DISABLES)
-$(QEMU_MAKEFILE): QEMU_SUPPRESSED_WARNINGS:=$(QEMU_SUPPRESSED_WARNINGS)
+$(QEMU_MAKEFILE): QEMU_EXTRA_CFLAGS:=$(QEMU_EXTRA_CFLAGS)
 $(QEMU_MAKEFILE):
 	mkdir -p $(QEMU_BUILD_BASE)
 	#--with-git=true sets the "git" program to /bin/true - it essentially disables git
@@ -82,7 +85,7 @@ $(QEMU_MAKEFILE):
 	# some hosts compiler will complain about stringop truncation.
 	cd $(QEMU_BUILD_BASE) && $(abspath $(QEMU_ROOT)/configure) \
 		--target-list=$(QEMU_TARGET) --with-git=true --disable-werror \
-		--extra-cflags="$(QEMU_SUPPRESSED_WARNINGS)" \
+		--extra-cflags="$(QEMU_EXTRA_CFLAGS)" \
 		--disable-gcrypt --disable-vnc-png $(QEMU_AOSP_DISABLES) \
 		--python=$(BUILDTOOLS_BINDIR)/py3-cmd
 
@@ -97,4 +100,4 @@ QEMU_ARCH:=
 QEMU_ROOT:=
 QEMU_TARGET:=
 QEMU_AOSP_DISABLES:=
-QEMU_SUPPRESSED_WARNINGS:=
+QEMU_EXTRA_CFLAGS:=
