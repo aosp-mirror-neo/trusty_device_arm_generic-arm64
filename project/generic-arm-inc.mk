@@ -126,7 +126,7 @@ endif
 
 # Allow inclusion of the Secretkeeper TA to be selected at build time.
 ifeq (true,$(call TOBOOL,$(SECRETKEEPER_ENABLED)))
-     TRUSTY_SECRETKEEPER_USER_TASK := trusty/user/app/secretkeeper
+     TRUSTY_SECRETKEEPER_USER_TASK := trusty/user/app/secretkeeper/app
 endif
 
 #
