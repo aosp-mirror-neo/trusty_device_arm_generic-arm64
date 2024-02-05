@@ -199,6 +199,7 @@ endif
 # on generic-arm64 hwcrypto requires FAKE HWRNG and HWKEY services
 WITH_FAKE_HWRNG ?= true
 WITH_FAKE_HWKEY ?= true
+WITH_FAKE_KEYBOX ?= true
 
 # This project requires trusty IPC
 WITH_TRUSTY_IPC := true
