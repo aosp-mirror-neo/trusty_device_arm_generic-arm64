@@ -184,6 +184,12 @@ TRUSTY_ALL_USER_TASKS += \
 
 endif
 
+ifeq (true,$(call TOBOOL,$(UNITTEST_COVERAGE_ENABLED)))
+TRUSTY_ALL_USER_TASKS += \
+	trusty/user/base/app/line-coverage \
+
+endif
+
 # on generic-arm64 hwcrypto requires FAKE HWRNG and HWKEY services
 WITH_FAKE_HWRNG ?= true
 WITH_FAKE_HWKEY ?= true
