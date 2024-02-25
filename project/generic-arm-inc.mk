@@ -124,6 +124,11 @@ else
     TRUSTY_KEYMINT_USER_TASK := trusty/user/app/keymaster
 endif
 
+# Allow inclusion of the Secretkeeper TA to be selected at build time.
+ifeq (true,$(call TOBOOL,$(SECRETKEEPER_ENABLED)))
+     TRUSTY_SECRETKEEPER_USER_TASK := trusty/user/app/secretkeeper
+endif
+
 #
 # Modules to be compiled into lk.bin
 #
@@ -163,6 +168,7 @@ TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/confirmationui \
 	trusty/user/app/gatekeeper \
 	$(TRUSTY_KEYMINT_USER_TASK) \
+	$(TRUSTY_SECRETKEEPER_USER_TASK) \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
