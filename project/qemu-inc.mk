@@ -17,6 +17,9 @@ PROJECT_QEMU_INC_LOCAL_DIR := $(GET_LOCAL_DIR)
 
 APPLOADER_ALLOW_NS_CONNECT := true
 
+# Include Secretkeeper TA
+TRUSTY_SECRETKEEPER_USER_TASK := trusty/user/app/secretkeeper/app
+
 include project/$(QEMU_TRUSTY_PROJECT).mk
 
 # limit physical memory to 29 bits to make the mapping
