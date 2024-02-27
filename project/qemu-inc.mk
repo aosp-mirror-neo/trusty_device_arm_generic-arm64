@@ -18,7 +18,7 @@ PROJECT_QEMU_INC_LOCAL_DIR := $(GET_LOCAL_DIR)
 APPLOADER_ALLOW_NS_CONNECT := true
 
 # Include Secretkeeper TA
-TRUSTY_SECRETKEEPER_USER_TASK := trusty/user/app/secretkeeper/app
+SECRETKEEPER_ENABLED := true
 
 include project/$(QEMU_TRUSTY_PROJECT).mk
 
