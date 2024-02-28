@@ -17,12 +17,19 @@ PROJECT_QEMU_INC_LOCAL_DIR := $(GET_LOCAL_DIR)
 
 APPLOADER_ALLOW_NS_CONNECT := true
 
+# Include Secretkeeper TA
+SECRETKEEPER_ENABLED := true
+
 include project/$(QEMU_TRUSTY_PROJECT).mk
 
 # limit physical memory to 29 bits to make the mapping
 # as small as possible while covering the entire kernel plus
 # enough pages for the page tables for the initial mappings
 GLOBAL_DEFINES += MMU_IDENT_SIZE_SHIFT=29
+
+# Qemu statically built with glibc<2.29 uses a syscall to implement
+# clock_gettime instead of the VDSO, which makes the calls much slower
+APP_TIMERTEST_MAX_CLOCK_PERIOD := 2000
 
 # Derive RPMB key using HKDF
 WITH_HKDF_RPMB_KEY ?= true
