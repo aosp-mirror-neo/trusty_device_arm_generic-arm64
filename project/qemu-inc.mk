@@ -17,12 +17,19 @@ PROJECT_QEMU_INC_LOCAL_DIR := $(GET_LOCAL_DIR)
 
 APPLOADER_ALLOW_NS_CONNECT := true
 
+# Include Secretkeeper TA
+SECRETKEEPER_ENABLED := true
+
 include project/$(QEMU_TRUSTY_PROJECT).mk
 
 # limit physical memory to 29 bits to make the mapping
 # as small as possible while covering the entire kernel plus
 # enough pages for the page tables for the initial mappings
 GLOBAL_DEFINES += MMU_IDENT_SIZE_SHIFT=29
+
+# Qemu statically built with glibc<2.29 uses a syscall to implement
+# clock_gettime instead of the VDSO, which makes the calls much slower
+APP_TIMERTEST_MAX_CLOCK_PERIOD := 2000
 
 # Derive RPMB key using HKDF
 WITH_HKDF_RPMB_KEY ?= true
@@ -185,6 +192,14 @@ $(PY3_CMD): $(BUILDTOOLS_BINDIR)/py3-cmd
 
 EXTRA_BUILDDEPS += $(PY3_CMD)
 
+# List of files we need from Android
+ANDROID_OUT_FILES := \
+	out/host/linux-x86/bin/adb \
+	out/target/product/trusty/system.img \
+	out/target/product/trusty/vendor.img \
+	out/target/product/trusty/userdata.img \
+	out/target/product/trusty/data/nativetest64 \
+
 # Copy Android prebuilts into the build directory so that the build does not
 # depend on any files in the source tree. We want to package the build artifacts
 # without any dependencies on the sources.
@@ -192,14 +207,30 @@ EXTRA_BUILDDEPS += $(PY3_CMD)
 # be cleared before copying in the fresh content. `rm -rf` is used to accomplish
 # this because it bypasses writing un-writeable files in addition to bringing
 # the target directory to the same state as with a clean build.
-ANDROID_PREBUILT := $(BUILDDIR)/aosp/android
-$(ANDROID_PREBUILT): trusty/prebuilts/aosp/android
-	@echo copying Android prebuilts
-	@rm -rf $@
-	@$(MKDIR)
-	@cp -r $< $@
+ANDROID_OUT_BUILD_DIR := $(BUILDDIR)/aosp/android
 
-EXTRA_BUILDDEPS += $(ANDROID_PREBUILT)
+ifneq (,$(ANDROID_BUILD_TOP))
+# We are building Trusty inside an Android environment,
+# which means we can use a fresh Android build instead of prebuilts
+ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
+else
+ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
+endif
+
+ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
+
+# Copy the files listed in ANDROID_OUT_FILES from ANDROID_OUT_SRC_DIR into
+# ANDROID_OUT_BUILD_DIR preserving the directory structure relative to the
+# top-level ANDROID_OUT_SRC_DIR directory
+$(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_SRC_DIR := $(ANDROID_OUT_SRC_DIR)
+$(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_FILES := $(ANDROID_OUT_FILES)
+$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES)
+	@echo creating Android output directory
+	@rm -rf $@
+	@mkdir -p $@
+	@cd $(ANDROID_OUT_SRC_DIR) && cp -r --parents -t $@ $(ANDROID_OUT_FILES)
+
+EXTRA_BUILDDEPS += $(ANDROID_OUT_BUILD_DIR)
 
 # Save variables to a json file to export paths known to the build system to
 # the test system
@@ -208,7 +239,7 @@ $(QEMU_CONFIG): EXTRA_QEMU_FLAGS := ["-machine", "gic-version=$(GIC_VERSION)"]
 $(QEMU_CONFIG): ATF_OUT_DIR := $(subst $(BUILDDIR)/,,$(ATF_OUT_DIR))
 $(QEMU_CONFIG): LINUX_BUILD_DIR := $(subst $(BUILDDIR)/,,$(LINUX_BUILD_DIR))
 $(QEMU_CONFIG): LINUX_ARCH := $(LINUX_ARCH)
-$(QEMU_CONFIG): ANDROID_PREBUILT := $(subst $(BUILDDIR)/,,$(ANDROID_PREBUILT))
+$(QEMU_CONFIG): ANDROID_OUT_BUILD_DIR := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_BUILD_DIR))
 $(QEMU_CONFIG): RPMB_DEV := $(subst $(BUILDDIR)/,,$(RPMB_DEV))
 $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 	@echo generating $@
@@ -217,7 +248,7 @@ $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 	@echo '  "atf": "$(ATF_OUT_DIR)", ' >> $@
 	@echo '  "qemu": "$(QEMU_BIN)", ' >> $@
 	@echo '  "extra_qemu_flags": $(EXTRA_QEMU_FLAGS), ' >> $@
-	@echo '  "android": "$(ANDROID_PREBUILT)", ' >> $@
+	@echo '  "android": "$(ANDROID_OUT_BUILD_DIR)", ' >> $@
 	@echo '  "rpmbd": "$(RPMB_DEV)", ' >> $@
 	@echo '  "arch": "$(ARCH)" }' >> $@
 
@@ -260,7 +291,7 @@ ifeq (true,$(call TOBOOL,$(PACKAGE_QEMU_TRUSTY)))
 # Files & directories to copy into QEMU package archive
 QEMU_PACKAGE_FILES := \
 	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) $(QEMU_CONFIG) $(RPMB_DEV) \
-	$(RUN_SCRIPT) $(RUN_QEMU_SCRIPT) $(STOP_SCRIPT) $(ANDROID_PREBUILT) \
+	$(RUN_SCRIPT) $(RUN_QEMU_SCRIPT) $(STOP_SCRIPT) $(ANDROID_OUT_BUILD_DIR) \
 	$(QEMU_BIN) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/bl31.bin \
 	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) $(LINUX_IMAGE) \
 
@@ -274,7 +305,10 @@ QEMU_PACKAGE_EXTRA_FILES := \
 include project/qemu-package-inc.mk
 endif
 
-ANDROID_PREBUILT :=
+ANDROID_OUT_FILES :=
+ANDROID_OUT_BUILD_DIR :=
+ANDROID_OUT_SRC_DIR :=
+ANDROID_OUT_SRC_FILES :=
 ATF_BUILD_BASE :=
 ATF_OUT_COPIED_FILES :=
 ATF_OUT_DIR :=
