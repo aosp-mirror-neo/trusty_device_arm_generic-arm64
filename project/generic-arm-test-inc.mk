@@ -31,10 +31,6 @@ include trusty/user/app/sample/stats-test/usertests-inc.mk
 include trusty/user/base/usertests-inc.mk
 include trusty/user/base/usertests-rust-inc.mk
 
-# Only enable pattern init in test-builds, as it has runtime overhead
-# and intentionally attempts to induce crashes for bad assumptions.
-GLOBAL_SHARED_COMPILEFLAGS += -ftrivial-auto-var-init=pattern
-
 WITH_HWCRYPTO_UNITTEST := 1
 
 # Enable hwcrypto unittest keyslots and tests
