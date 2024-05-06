@@ -1,0 +1,17 @@
+/dts-v1/;
+
+/ {
+    tb_fw-config {
+        compatible = "arm,tb_fw";
+        /* Disable authentication for development */
+        disable_auth = <0x0>;
+    };
+    secure-partitions {
+        compatible = "arm,sp";
+        trusty {
+            uuid = "40ee25f0-a2bc-304c-8c4c-a173c57d8af1";
+            load-address = <0x10000000>;
+            owner = "Plat";
+        };
+    };
+};
