@@ -54,10 +54,11 @@ endif
 # select timer
 ifeq (true,$(call TOBOOL,$(KERNEL_32BIT)))
 # 32 bit Secure EL1 with a 64 bit EL3 gets the non-secure physical timer
-GLOBAL_DEFINES += TIMER_ARM_GENERIC_SELECTED=CNTP
+TIMER_ARM_GENERIC_SELECTED ?= CNTP
 else
-GLOBAL_DEFINES += TIMER_ARM_GENERIC_SELECTED=CNTPS
+TIMER_ARM_GENERIC_SELECTED ?= CNTPS
 endif
+GLOBAL_DEFINES += TIMER_ARM_GENERIC_SELECTED=$(TIMER_ARM_GENERIC_SELECTED)
 
 #
 # GLOBAL definitions
@@ -134,12 +135,19 @@ endif
 # Modules to be compiled into lk.bin
 #
 MODULES += \
-	trusty/kernel/lib/sm \
 	trusty/kernel/lib/trusty \
-	trusty/kernel/lib/memlog \
 	trusty/kernel/lib/metrics \
 	trusty/kernel/services/apploader \
 	trusty/kernel/services/smc \
+
+# Add lib/sm by default but allow building without it
+LIB_SM_ENABLED ?= true
+ifeq (true,$(call TOBOOL,$(LIB_SM_ENABLED)))
+    MODULES += \
+		trusty/kernel/lib/memlog \
+		trusty/kernel/lib/sm \
+
+endif
 
 #
 # Set user space arch
