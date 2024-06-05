@@ -1,0 +1,29 @@
+/dts-v1/;
+
+/ {
+    compatible = "arm,ffa-manifest-1.0";
+    ffa-version = <0x00010001>; /* 31:16 - Major, 15:0 - Minor */
+    uuid = <0xf025ee40 0x4c30bca2 0x73a14c8c 0xf18a7dc5>;
+    id = <1>;
+    auxiliary-id = <0xaf>;
+    description = "Trusty";
+
+    execution-ctx-count = <4>;
+    exception-level = <2>; /* S-EL1 */
+    execution-state = <0>; /* AARCH64 */
+    load-address = <0x10000000>;
+    entrypoint-offset = <0x00004000>;
+    xlat-granule = <0>; /* 4KiB */
+
+    messaging-method = <7>; /* Direct and indirect messages */
+    notification-support; /* Support receipt of notifications. */
+
+    ns-interrupts-action = <1>; /* Managed exit is supported */
+
+    boot-order = <0>;
+    gp-register-num = <0>; /* Place boot data into x0 */
+    boot-info {
+        compatible = "arm,ffa-manifest-boot-info";
+        ffa_manifest;
+    };
+};
