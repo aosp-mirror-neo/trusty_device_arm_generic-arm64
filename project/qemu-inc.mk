@@ -79,6 +79,25 @@ APPLOADER_SIGN_UNLOCKED_KEY_ID ?= 1
 APPLOADER_ENCRYPT_KEY_0_FILE := \
 	$(PROJECT_KEYS_DIR)/apploader_encrypt_test_key_0.bin
 
+LK_BIN := $(BUILDDIR)/lk.bin
+
+EXTRA_BUILDRULES += external/trusty/bootloader/test-runner/test-runner-inc.mk
+TEST_RUNNER_BIN := $(BUILDDIR)/test-runner/external/trusty/bootloader/test-runner/test-runner.bin
+
+ifeq (true,$(call TOBOOL,$(HAFNIUM)))
+HAFNIUM_OUT_DIR := $(BUILDDIR)/hafnium
+HAFNIUM_PREBUILTS := trusty/prebuilts/aosp/hafnium
+HAFNIUM_MANIFESTS := trusty/device/arm/generic-arm64/project/hafnium
+$(HAFNIUM_OUT_DIR)/%: $(HAFNIUM_PREBUILTS) $(HAFNIUM_MANIFESTS)
+	mkdir -p $(HAFNIUM_OUT_DIR)
+	cp -r $(HAFNIUM_PREBUILTS)/* $(HAFNIUM_OUT_DIR)
+	cp -r $(HAFNIUM_MANIFESTS)/* $(HAFNIUM_OUT_DIR)
+	ln -sf $(LK_BIN) $(HAFNIUM_OUT_DIR)/lk.bin
+BL32_BIN := $(HAFNIUM_OUT_DIR)/hafnium.bin
+else
+BL32_BIN := $(LK_BIN)
+endif
+
 ATF_DEBUG := 1
 ATF_PLAT := qemu
 ATF_WITH_TRUSTY_GENERIC_SERVICES := true
@@ -95,9 +114,6 @@ include project/qemu-qemu-inc.mk
 
 LINUX_ARCH ?= arm64
 include project/linux-inc.mk
-
-EXTRA_BUILDRULES += external/trusty/bootloader/test-runner/test-runner-inc.mk
-TEST_RUNNER_BIN := $(BUILDDIR)/test-runner/external/trusty/bootloader/test-runner/test-runner.bin
 
 RUN_QEMU_SCRIPT := $(BUILDDIR)/run-qemu
 RUN_SCRIPT := $(BUILDDIR)/run
@@ -119,7 +135,7 @@ ATF_SYMLINKS := \
 	$(ATF_OUT_DIR)/bl32.bin \
 	$(ATF_OUT_DIR)/bl33.bin \
 
-$(ATF_OUT_DIR)/bl32.bin: $(BUILDDIR)/lk.bin $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/bl32.bin: $(BL32_BIN) $(ATF_OUT_DIR)
 	ln -sf $(abspath $<) $@
 
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
