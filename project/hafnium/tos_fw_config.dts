@@ -1,0 +1,71 @@
+/dts-v1/;
+
+/ {
+    #size-cells = <0x2>;
+    #address-cells = <0x2>;
+    compatible = "arm,ffa-core-manifest-1.0";
+    attribute {
+        spmc_id = <0x8000>;
+        maj_ver = <0x1>;
+        min_ver = <0x1>;
+        exec_state = <0x0>;
+        /* i'm not sure this is right, or whether it does anything
+        the docs say that it's only used to verify that the entry
+        point is in range */
+        load_address = <0x0 0x0e200000>;
+        entrypoint = <0x0 0x0e200000>;
+        binary_size = <0x60000>;
+    };
+    cpus {
+        #address-cells = <0x1>;
+        #size-cells = <0x0>;
+        cpu@0 {
+            phandle = <0x8004>;
+            reg = <0x0>;
+            compatible = "arm,cortex-a57";
+            device_type = "cpu";
+        };
+        /*
+        * SPMC (Hafnium) requires secondary core nodes are declared
+        * in descending order.
+        */
+        cpu@3 {
+            phandle = <0x8001>;
+            reg = <0x3>;
+            compatible = "arm,cortex-a57";
+            device_type = "cpu";
+        };
+        cpu@2 {
+            phandle = <0x8002>;
+            reg = <0x2>;
+            compatible = "arm,cortex-a57";
+            device_type = "cpu";
+        };
+        cpu@1 {
+            phandle = <0x8003>;
+            reg = <0x1>;
+            compatible = "arm,cortex-a57";
+            device_type = "cpu";
+        };
+    };
+    secram@e000000 {
+        secure-status = "okay";
+        status = "disabled";
+        reg = <0x0 0xe000000 0x0 0x30000000>;
+        device_type = "memory";
+    };
+    ns-memory@40000000 {
+        reg = <0x0 0x40000000 0x0 0x40000000>;
+        device_type = "ns-memory";
+    };
+    hypervisor {
+        compatible = "hafnium,hafnium";
+        vm1 {
+            is_ffa_partition;
+            debug_name = "trusty";
+            load_address = <0x10000000>;
+            vcpu_count = <4>;
+            mem_size = <0x08000000>;
+        };
+    };
+};
