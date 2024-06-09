@@ -1,0 +1,7 @@
+{
+  "trusty" : {
+    "image": "lk.bin",
+    "pm": "trusty.dts",
+    "owner": "Plat"
+  }
+}
