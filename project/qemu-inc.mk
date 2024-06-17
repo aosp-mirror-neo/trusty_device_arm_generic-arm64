@@ -79,6 +79,25 @@ APPLOADER_SIGN_UNLOCKED_KEY_ID ?= 1
 APPLOADER_ENCRYPT_KEY_0_FILE := \
 	$(PROJECT_KEYS_DIR)/apploader_encrypt_test_key_0.bin
 
+LK_BIN := $(BUILDDIR)/lk.bin
+
+EXTRA_BUILDRULES += external/trusty/bootloader/test-runner/test-runner-inc.mk
+TEST_RUNNER_BIN := $(BUILDDIR)/test-runner/external/trusty/bootloader/test-runner/test-runner.bin
+
+ifeq (true,$(call TOBOOL,$(HAFNIUM)))
+HAFNIUM_OUT_DIR := $(BUILDDIR)/hafnium
+HAFNIUM_PREBUILTS := trusty/prebuilts/aosp/hafnium
+HAFNIUM_MANIFESTS := trusty/device/arm/generic-arm64/project/hafnium
+$(HAFNIUM_OUT_DIR)/%: $(HAFNIUM_PREBUILTS) $(HAFNIUM_MANIFESTS)
+	mkdir -p $(HAFNIUM_OUT_DIR)
+	cp -r $(HAFNIUM_PREBUILTS)/* $(HAFNIUM_OUT_DIR)
+	cp -r $(HAFNIUM_MANIFESTS)/* $(HAFNIUM_OUT_DIR)
+	ln -sf $(LK_BIN) $(HAFNIUM_OUT_DIR)/lk.bin
+BL32_BIN := $(HAFNIUM_OUT_DIR)/hafnium.bin
+else
+BL32_BIN := $(LK_BIN)
+endif
+
 ATF_DEBUG := 1
 ATF_PLAT := qemu
 ATF_WITH_TRUSTY_GENERIC_SERVICES := true
@@ -87,17 +106,35 @@ ATF_TOOLCHAIN_PREFIX := $(ARCH_arm64_TOOLCHAIN_PREFIX)
 ATF_ROOT := $(call FIND_EXTERNAL,arm-trusted-firmware)
 include project/qemu-atf-inc.mk
 
-QEMU_ROOT := $(call FIND_EXTERNAL,qemu)
+# Try using the qemu from the prebuilts
 QEMU_BUILD_BASE := $(abspath $(BUILDDIR)/qemu-build)
 QEMU_ARCH := aarch64
+QEMU_PREBUILTS := $(wildcard prebuilts/android-emulator/trusty-x86_64)
+
+ifeq (,$(QEMU_PREBUILTS))
+# No prebuilts, build qemu from source
+QEMU_ROOT := $(call FIND_EXTERNAL,qemu)
 QEMU_TARGET := aarch64-softmmu,arm-softmmu
 include project/qemu-qemu-inc.mk
+else
+# We have prebuilts, copy them into the build directory
+QEMU_BIN := $(QEMU_BUILD_BASE)/bin/qemu-system-$(QEMU_ARCH)
+
+$(QEMU_BUILD_BASE): $(QEMU_PREBUILTS)
+	@echo creating qemu output directory
+	@rm -rf $@
+	@cp -r $< $@
+
+# The binary is inside the build directory, so create
+# an empty dependency between them
+$(QEMU_BIN): $(QEMU_BUILD_BASE)
+	@echo creating qemu binary
+
+EXTRA_BUILDDEPS += $(QEMU_BUILD_BASE) $(QEMU_BIN)
+endif
 
 LINUX_ARCH ?= arm64
 include project/linux-inc.mk
-
-EXTRA_BUILDRULES += external/trusty/bootloader/test-runner/test-runner-inc.mk
-TEST_RUNNER_BIN := $(BUILDDIR)/test-runner/external/trusty/bootloader/test-runner/test-runner.bin
 
 RUN_QEMU_SCRIPT := $(BUILDDIR)/run-qemu
 RUN_SCRIPT := $(BUILDDIR)/run
@@ -119,7 +156,7 @@ ATF_SYMLINKS := \
 	$(ATF_OUT_DIR)/bl32.bin \
 	$(ATF_OUT_DIR)/bl33.bin \
 
-$(ATF_OUT_DIR)/bl32.bin: $(BUILDDIR)/lk.bin $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/bl32.bin: $(BL32_BIN) $(ATF_OUT_DIR)
 	ln -sf $(abspath $<) $@
 
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
@@ -326,6 +363,7 @@ QEMU_ERROR_PY :=
 QEMU_OPTIONS_PY :=
 QEMU_LLDB_SUPPORT_PY :=
 QEMU_LLDBINIT :=
+QEMU_PREBUILTS :=
 QEMU_PY :=
 QEMU_SCRIPTS :=
 PY3_CMD :=
