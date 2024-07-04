@@ -15,6 +15,7 @@ import sys
 import tempfile
 import time
 import threading
+import contextlib
 
 from typing import Optional, List
 
@@ -391,6 +392,14 @@ class Runner(object):
         self.session.temp_files.append(tmp.name)
         return tmp
 
+    def create_rpmb_data(self):
+        """If no rpmb data image exists, copy the snapshot to create new one."""
+        rpmb_data = self.qemu_arch_options.rpmb_data_path()
+        if not os.path.exists(rpmb_data):
+            os.makedirs(os.path.dirname(rpmb_data), exist_ok=True)
+            shutil.copy(self.qemu_arch_options.rpmb_data_snapshot_path(),
+                        rpmb_data)
+
     def rpmb_up(self):
         """Brings up the rpmb daemon, returning QEMU args to connect"""
         rpmb_data = self.qemu_arch_options.rpmb_data_path()
@@ -490,7 +499,7 @@ class Runner(object):
         if self.msg_sock_conn:
             self.msg_sock_conn.close()
 
-    def boottest_run(self, boot_tests, timeout=(60 * 2)):
+    def boottest_run(self, boot_tests, timeout=60 * 2):
         """Run boot test cases"""
         args = self.session.args
         has_error = False
@@ -566,7 +575,8 @@ class Runner(object):
                             break
                         except IOError as e:
                             if e.errno != errno.EAGAIN:
-                                RunnerGenericError("Failed to print message")
+                                raise RunnerGenericError(
+                                    "Failed to print message") from e
                             select.select([], [sys.stdout], [])
 
                 # Please align message structure definition in testrunner.
@@ -774,6 +784,17 @@ class Runner(object):
             except IOError:
                 break
 
+    def create_drives_data(self):
+        """If drives images don't exist, create some from their snapshots."""
+        snapshot_dir = self.qemu_arch_options.drive_snapshot_dir()
+        drives_dir = self.qemu_arch_options.drive_dir()
+        os.makedirs(drives_dir, exist_ok=True)
+        for drive in self.qemu_arch_options.drives():
+            drive_file = os.path.join(drives_dir, drive.file_name())
+            if not os.path.exists(drive_file):
+                shutil.copy(os.path.join(snapshot_dir, drive.file_name()),
+                            drive_file)
+
     def universal_args(self):
         """Generates arguments used in all qemu invocations"""
         args = self.qemu_arch_options.basic_options()
@@ -821,7 +842,11 @@ class Runner(object):
 
         try:
             if self.use_rpmb:
+                self.create_rpmb_data()
                 args += self.rpmb_up()
+
+            if self.config.android:
+                self.create_drives_data()
 
             if self.config.linux:
                 args += self.qemu_arch_options.gen_dtb(
@@ -894,13 +919,24 @@ class Runner(object):
             self.session.has_error = True
             raise
 
-    def shutdown(self):
+    def shutdown(self, factory_reset: bool, full_wipe: bool):
         """Shut down emulator after test cases have run
 
         The launch and shutdown methods store shared state in a session object.
         Calls to launch and shutdown must be correctly paired no matter whether
         the launch steps and calls to adb succeed or fail.
         """
+        if factory_reset:
+            drive_dir = self.qemu_arch_options.drive_dir()
+            for drive in self.qemu_arch_options.drives():
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(os.path.join(drive_dir, drive.file_name()))
+        if full_wipe:
+            assert factory_reset, (
+                "Cannot perform a full wipe without factory resetting.")
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(self.qemu_arch_options.rpmb_data_path())
+
         if self.state == RunnerState.OFF:
             return
 
@@ -935,13 +971,13 @@ class Runner(object):
         if unclean_exit:
             raise RunnerGenericError("QEMU did not exit cleanly")
 
-    def reboot(self, target_state):
-        self.shutdown()
+    def reboot(self, target_state, factory_reset: bool, full_wipe: bool):
+        self.shutdown(factory_reset, full_wipe)
 
         try:
             self.launch(target_state)
         except:
-            self.shutdown()
+            self.shutdown(factory_reset, full_wipe)
             raise
 
     def run(self, boot_tests: Optional[List] = None,
@@ -1003,4 +1039,4 @@ class Runner(object):
             if self.interactive and self.session:
                 # The user is responsible for quitting QEMU
                 self.session.qemu_proc.wait()
-            self.shutdown()
+            self.shutdown(factory_reset=True, full_wipe=False)
