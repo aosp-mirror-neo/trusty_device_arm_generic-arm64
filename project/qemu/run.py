@@ -64,7 +64,7 @@ def _prepare_runner_for_test(runner, args):
     # Due to limitations in the test runner, always reboot between boot tests
     if (runner.state != target_state or
             runner.state == qemu.RunnerState.BOOTLOADER):
-        runner.reboot(target_state)
+        runner.reboot(target_state, factory_reset=True, full_wipe=False)
 
 
 def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
@@ -82,9 +82,11 @@ def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
         "Command contained neither a boot test nor an Android test to run")
 
 
-def shutdown(runner: Optional[qemu.Runner]):
+def shutdown(runner: Optional[qemu.Runner],
+             factory_reset: bool = True,
+             full_wipe: bool = False):
     if runner:
-        runner.shutdown()
+        runner.shutdown(factory_reset, full_wipe)
 
 
 def build_argparser():
