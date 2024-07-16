@@ -106,11 +106,32 @@ ATF_TOOLCHAIN_PREFIX := $(ARCH_arm64_TOOLCHAIN_PREFIX)
 ATF_ROOT := $(call FIND_EXTERNAL,arm-trusted-firmware)
 include project/qemu-atf-inc.mk
 
-QEMU_ROOT := $(call FIND_EXTERNAL,qemu)
+# Try using the qemu from the prebuilts
 QEMU_BUILD_BASE := $(abspath $(BUILDDIR)/qemu-build)
 QEMU_ARCH := aarch64
+QEMU_PREBUILTS := $(wildcard prebuilts/android-emulator/trusty-x86_64)
+
+ifeq (,$(QEMU_PREBUILTS))
+# No prebuilts, build qemu from source
+QEMU_ROOT := $(call FIND_EXTERNAL,qemu)
 QEMU_TARGET := aarch64-softmmu,arm-softmmu
 include project/qemu-qemu-inc.mk
+else
+# We have prebuilts, copy them into the build directory
+QEMU_BIN := $(QEMU_BUILD_BASE)/bin/qemu-system-$(QEMU_ARCH)
+
+$(QEMU_BUILD_BASE): $(QEMU_PREBUILTS)
+	@echo creating qemu output directory
+	@rm -rf $@
+	@cp -r $< $@
+
+# The binary is inside the build directory, so create
+# an empty dependency between them
+$(QEMU_BIN): $(QEMU_BUILD_BASE)
+	@echo creating qemu binary
+
+EXTRA_BUILDDEPS += $(QEMU_BUILD_BASE) $(QEMU_BIN)
+endif
 
 LINUX_ARCH ?= arm64
 include project/linux-inc.mk
@@ -342,6 +363,7 @@ QEMU_ERROR_PY :=
 QEMU_OPTIONS_PY :=
 QEMU_LLDB_SUPPORT_PY :=
 QEMU_LLDBINIT :=
+QEMU_PREBUILTS :=
 QEMU_PY :=
 QEMU_SCRIPTS :=
 PY3_CMD :=
