@@ -136,7 +136,6 @@ endif
 LINUX_ARCH ?= arm64
 include project/linux-inc.mk
 
-RUN_QEMU_SCRIPT := $(BUILDDIR)/run-qemu
 RUN_SCRIPT := $(BUILDDIR)/run
 STOP_SCRIPT := $(BUILDDIR)/stop
 QEMU_CONFIG := $(BUILDDIR)/config.json
@@ -164,7 +163,6 @@ $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
 
 ATF_OUT_COPIED_FILES := \
 	$(ATF_OUT_DIR)/firmware.android.dts \
-	$(ATF_OUT_DIR)/run-qemu-helper \
 
 $(ATF_OUT_COPIED_FILES): $(ATF_OUT_DIR)/% : $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/% $(ATF_OUT_DIR)
 	@echo copying $@
@@ -291,21 +289,6 @@ $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 
 EXTRA_BUILDDEPS += $(QEMU_CONFIG)
 
-# Create a wrapper script around run-qemu-helper which defaults arguments to
-# those needed to run this build
-$(RUN_QEMU_SCRIPT): QEMU_BIN := $(subst $(BUILDDIR)/,,$(QEMU_BIN))
-$(RUN_QEMU_SCRIPT): ATF_OUT_DIR := $(subst $(BUILDDIR)/,,$(ATF_OUT_DIR))
-$(RUN_QEMU_SCRIPT): LINUX_BUILD_DIR := $(subst $(BUILDDIR)/,,$(LINUX_BUILD_DIR))
-$(RUN_QEMU_SCRIPT): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
-	@echo generating $@
-	@echo "#!/bin/sh" >$@
-	@echo 'SCRIPT_DIR=$$(dirname "$$0")' >>$@
-	@echo 'cd "$$SCRIPT_DIR/$(ATF_OUT_DIR)"' >>$@
-	@echo 'KERNEL_DIR="$$SCRIPT_DIR/$(LINUX_BUILD_DIR)" QEMU="$$SCRIPT_DIR/$(QEMU_BIN)" ./run-qemu-helper "$$@"' >>$@
-	@chmod +x $@
-
-EXTRA_BUILDDEPS += $(RUN_QEMU_SCRIPT)
-
 # The original run shell script was replaced by run.py. Create symlink to
 # preserve backwards compatibility.
 $(RUN_SCRIPT): $(RUN_PY)
@@ -328,7 +311,7 @@ ifeq (true,$(call TOBOOL,$(PACKAGE_QEMU_TRUSTY)))
 # Files & directories to copy into QEMU package archive
 QEMU_PACKAGE_FILES := \
 	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) $(QEMU_CONFIG) $(RPMB_DEV) \
-	$(RUN_SCRIPT) $(RUN_QEMU_SCRIPT) $(STOP_SCRIPT) $(ANDROID_OUT_BUILD_DIR) \
+	$(RUN_SCRIPT) $(STOP_SCRIPT) $(ANDROID_OUT_BUILD_DIR) \
 	$(QEMU_BIN) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/bl31.bin \
 	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) $(LINUX_IMAGE) \
 
@@ -353,7 +336,6 @@ ATF_SYMLINKS :=
 LINUX_ARCH :=
 LINUX_BUILD_DIR :=
 LINUX_IMAGE :=
-RUN_QEMU_SCRIPT :=
 RUN_SCRIPT :=
 TEST_RUNNER_BIN :=
 QEMU_BIN :=
