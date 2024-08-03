@@ -237,12 +237,12 @@ class QEMUCommandPipe(object):
             cmp_command["arguments"] = arguments
         return self.qmp_command(cmp_command)
 
-    def monitor_command(self, monitor_command, log_return=True):
+    def monitor_command(self, monitor_command):
         """Send a monitor command and write result to stderr."""
 
         res = self.qmp_execute("human-monitor-command",
                                {"command-line": monitor_command})
-        if log_return and res and "return" in res:
+        if res and "return" in res:
             sys.stderr.write(res["return"])
 
 
@@ -263,7 +263,7 @@ def qemu_handle_error(command_pipe, debug_on_error):
 
 
 def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
-    """Ensures QEMU is terminated. Tries to write to drive image files."""
+    """Ensures QEMU is terminated"""
     unclean_exit = False
 
     if command_pipe:
@@ -273,7 +273,6 @@ def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
                 if has_error:
                     qemu_handle_error(command_pipe=command_pipe,
                                       debug_on_error=debug_on_error)
-                command_pipe.monitor_command("commit", log_return=False)
                 command_pipe.qmp_execute("quit")
             except OSError:
                 pass
@@ -927,6 +926,16 @@ class Runner(object):
         Calls to launch and shutdown must be correctly paired no matter whether
         the launch steps and calls to adb succeed or fail.
         """
+        if factory_reset:
+            drive_dir = self.qemu_arch_options.drive_dir()
+            for drive in self.qemu_arch_options.drives():
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(os.path.join(drive_dir, drive.file_name()))
+        if full_wipe:
+            assert factory_reset, (
+                "Cannot perform a full wipe without factory resetting.")
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(self.qemu_arch_options.rpmb_data_path())
 
         if self.state == RunnerState.OFF:
             return
@@ -955,17 +964,6 @@ class Runner(object):
         if self.adb_transport:
             # Disconnect ADB and wait for our port to be released by qemu
             self.adb_down(self.session.ports[1])
-
-        if factory_reset:
-            drive_dir = self.qemu_arch_options.drive_dir()
-            for drive in self.qemu_arch_options.drives():
-                with contextlib.suppress(FileNotFoundError):
-                    os.remove(os.path.join(drive_dir, drive.file_name()))
-        if full_wipe:
-            assert factory_reset, (
-                "Cannot perform a full wipe without factory resetting.")
-            with contextlib.suppress(FileNotFoundError):
-                os.remove(self.qemu_arch_options.rpmb_data_path())
 
         self.session = None
         self.state = RunnerState.OFF
