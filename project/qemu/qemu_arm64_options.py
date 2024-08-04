@@ -6,26 +6,6 @@ import tempfile
 from qemu_error import RunnerGenericError
 
 
-class QemuDrive():
-    def __init__(self, name: str, index: int):
-        self.name = name
-        self.index = index
-
-    def index_letter(self):
-        return chr(ord('a') + self.index)
-
-    def file_name(self):
-        return f"{self.name}.img"
-
-    def args(self, image_dir):
-        return [
-            "-drive",
-            # pylint: disable=line-too-long
-            f"file={image_dir}/{self.file_name()},index={self.index},if=none,id=hd{self.index_letter()},format=raw,snapshot=off",
-            "-device",
-            f"virtio-blk-device,drive=hd{self.index_letter()}"
-        ]
-
 class QemuArm64Options(object):
 
     MACHINE = "virt,secure=on,virtualization=on"
@@ -44,11 +24,8 @@ class QemuArm64Options(object):
         self.args = []
         self.config = config
 
-    def rpmb_data_snapshot_path(self):
-        return f"{self.config.atf}/RPMB_DATA"
-
     def rpmb_data_path(self):
-        return f"{self.config.atf}/used/RPMB_DATA"
+        return f"{self.config.atf}/RPMB_DATA"
 
     def rpmb_options(self, sock):
         return [
@@ -96,26 +73,25 @@ class QemuArm64Options(object):
             raise RunnerGenericError(f"dts_to_dtb failed with {dts_to_dtb_ret}")
         return ["-dtb", dtb.name]
 
-    def drives(self) -> list[QemuDrive]:
+    def drive_args(self, image, index):
+        """Generates arguments for mapping a drive"""
+        index_letter = chr(ord('a') + index)
+        image_dir = f"{self.config.android}/target/product/trusty"
         return [
-            QemuDrive("userdata", 2),
-            QemuDrive("vendor", 1),
-            QemuDrive("system", 0)
+            "-drive",
+            # pylint: disable=line-too-long
+            f"file={image_dir}/{image}.img,index={index},if=none,id=hd{index_letter},format=raw,snapshot=on",
+            "-device",
+            f"virtio-blk-device,drive=hd{index_letter}"
         ]
-
-    def drive_snapshot_dir(self):
-        return f"{self.config.android}/target/product/trusty"
-
-    def drive_dir(self):
-        return f"{self.drive_snapshot_dir()}/used_drives"
 
     def android_drives_args(self):
         """Generates arguments for mapping all default drives"""
         args = []
-        image_dir = self.drive_dir()
         # This is order sensitive due to using e.g. root=/dev/vda
-        for drive in self.drives():
-            args += drive.args(image_dir)
+        args += self.drive_args("userdata", 2)
+        args += self.drive_args("vendor", 1)
+        args += self.drive_args("system", 0)
         return args
 
     def machine_options(self):
