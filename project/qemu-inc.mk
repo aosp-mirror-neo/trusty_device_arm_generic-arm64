@@ -245,6 +245,9 @@ ANDROID_OUT_FILES := \
 # the target directory to the same state as with a clean build.
 ANDROID_OUT_BUILD_DIR := $(BUILDDIR)/aosp/android
 
+ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_BUILD_DIR)/out/target/product/trusty
+ANDROID_OUT_ADB_PATH := $(ANDROID_OUT_BUILD_DIR)/out/host/linux-x86/bin/adb
+
 ifneq (,$(ANDROID_BUILD_TOP))
 # We are building Trusty inside an Android environment,
 # which means we can use a fresh Android build instead of prebuilts
@@ -275,7 +278,8 @@ $(QEMU_CONFIG): EXTRA_QEMU_FLAGS := ["-machine", "gic-version=$(GIC_VERSION)"]
 $(QEMU_CONFIG): ATF_OUT_DIR := $(subst $(BUILDDIR)/,,$(ATF_OUT_DIR))
 $(QEMU_CONFIG): LINUX_BUILD_DIR := $(subst $(BUILDDIR)/,,$(LINUX_BUILD_DIR))
 $(QEMU_CONFIG): LINUX_ARCH := $(LINUX_ARCH)
-$(QEMU_CONFIG): ANDROID_OUT_BUILD_DIR := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_BUILD_DIR))
+$(QEMU_CONFIG): ANDROID_OUT_IMAGE_DIR := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_IMAGE_DIR))
+$(QEMU_CONFIG): ANDROID_OUT_ADB_PATH := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_ADB_PATH))
 $(QEMU_CONFIG): RPMB_DEV := $(subst $(BUILDDIR)/,,$(RPMB_DEV))
 $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 	@echo generating $@
@@ -284,7 +288,8 @@ $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 	@echo '  "atf": "$(ATF_OUT_DIR)", ' >> $@
 	@echo '  "qemu": "$(QEMU_BIN)", ' >> $@
 	@echo '  "extra_qemu_flags": $(EXTRA_QEMU_FLAGS), ' >> $@
-	@echo '  "android": "$(ANDROID_OUT_BUILD_DIR)", ' >> $@
+	@echo '  "android_image_dir": "$(ANDROID_OUT_IMAGE_DIR)", ' >> $@
+	@echo '  "adb": "$(ANDROID_OUT_ADB_PATH)", ' >> $@
 	@echo '  "rpmbd": "$(RPMB_DEV)", ' >> $@
 	@echo '  "arch": "$(ARCH)" }' >> $@
 
