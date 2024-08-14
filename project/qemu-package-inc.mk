@@ -33,6 +33,10 @@ QEMU_PACKAGE_LICENSE_FILES := \
 	$(call FIND_EXTERNAL,linux/LICENSES/preferred/GPL-2.0) \
 	$(call FIND_EXTERNAL,linux/LICENSES/exceptions/Linux-syscall-note) \
 	$(call FIND_EXTERNAL,arm-trusted-firmware/docs/license.rst) \
+	prebuilts/android-emulator/NOTICE \
+
+# Some of these files might be missing
+QEMU_PACKAGE_LICENSE_FILES := $(wildcard $(QEMU_PACKAGE_LICENSE_FILES))
 
 # TODO: Unify with SDK license construction when it lands
 $(QEMU_PACKAGE_LICENSE): LOCAL_DIR := $(GET_LOCAL_DIR)
