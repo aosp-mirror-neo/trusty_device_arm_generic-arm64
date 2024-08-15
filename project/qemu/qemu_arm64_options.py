@@ -44,7 +44,7 @@ class QemuArm64Options(object):
             if returncode != 0:
                 raise RunnerGenericError(
                     f"dumping dtb failed with {returncode}")
-            dtc = f"{self.config.linux}/scripts/dtc/dtc"
+            dtc = "prebuilts/misc/linux-x86/dtc/dtc"
             dtb_to_dts_cmd = [dtc, "-q", "-O", "dts", dtb_gen.name]
             # pylint: disable=consider-using-with
             with subprocess.Popen(dtb_to_dts_cmd,
