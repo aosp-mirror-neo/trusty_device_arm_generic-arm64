@@ -44,8 +44,26 @@ ATF_BIN := $(ATF_OUT_DIR)/bl31.bin
 
 ATF_WITH_TRUSTY_GENERIC_SERVICES ?= false
 
+ifeq (true,$(call TOBOOL,$(HAFNIUM)))
+ATF_MAKE_ARGS := SPD=spmd
+ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=1
+ATF_MAKE_ARGS += BL32=$(BL32_BIN)
+ATF_MAKE_ARGS += BL33=$(TEST_RUNNER_BIN)
+ATF_MAKE_ARGS += SP_LAYOUT_FILE=$(HAFNIUM_OUT_DIR)/sp_layout.json
+ATF_MAKE_ARGS += QEMU_TOS_FW_CONFIG_DTS=$(HAFNIUM_OUT_DIR)/tos_fw_config.dts
+ATF_MAKE_ARGS += QEMU_TB_FW_CONFIG_DTS=$(HAFNIUM_OUT_DIR)/tb_fw_config.dts
+# Symlink the Hafnium DTBs to where ATF will look for them.
+HAFNIUM_DTBS := tb_fw_config.dtb tos_fw_config.dtb
+HAFNIUM_DTBS_SRCS := $(addprefix $(ATF_OUT_DIR)/fdts/, $(HAFNIUM_DTBS))
+$(HAFNIUM_DTBS_SRCS): $(ATF_BIN)
+HAFNIUM_DTBS_OUT := $(addprefix $(ATF_OUT_DIR)/, $(HAFNIUM_DTBS))
+$(HAFNIUM_DTBS_OUT): $(ATF_OUT_DIR)/%.dtb: $(ATF_OUT_DIR)/fdts/%.dtb
+	ln -sf $< $@
+EXTRA_BUILDDEPS += $(HAFNIUM_DTBS_OUT)
+else
 ATF_MAKE_ARGS := SPD=trusty
 ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=0
+endif
 ATF_MAKE_ARGS += CC=$(CLANG_BINDIR)/clang
 ATF_MAKE_ARGS += CROSS_COMPILE=$(ATF_TOOLCHAIN_PREFIX)
 ATF_MAKE_ARGS += PLAT=$(ATF_PLAT)
@@ -64,7 +82,7 @@ endif
 $(ATF_BIN): ATF_ROOT:=$(ATF_ROOT)
 $(ATF_BIN): ATF_MAKE_ARGS:=$(ATF_MAKE_ARGS)
 $(ATF_BIN): .PHONY
-	$(MAKE) -C $(ATF_ROOT) $(ATF_MAKE_ARGS)
+	$(MAKE) -C $(ATF_ROOT) $(ATF_MAKE_ARGS) all sp
 
 # Add ATF_BIN to the list of project dependencies
 EXTRA_BUILDDEPS += $(ATF_BIN)
