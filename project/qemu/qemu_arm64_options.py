@@ -1,30 +1,11 @@
 """Generate QEMU options for Trusty test framework"""
 
+import os
 import subprocess
 import tempfile
 
 from qemu_error import RunnerGenericError
 
-
-class QemuDrive():
-    def __init__(self, name: str, index: int):
-        self.name = name
-        self.index = index
-
-    def index_letter(self):
-        return chr(ord('a') + self.index)
-
-    def file_name(self):
-        return f"{self.name}.img"
-
-    def args(self, image_dir):
-        return [
-            "-drive",
-            # pylint: disable=line-too-long
-            f"file={image_dir}/{self.file_name()},index={self.index},if=none,id=hd{self.index_letter()},format=raw,snapshot=off",
-            "-device",
-            f"virtio-blk-device,drive=hd{self.index_letter()}"
-        ]
 
 class QemuArm64Options(object):
 
@@ -37,24 +18,41 @@ class QemuArm64Options(object):
 
     LINUX_ARGS = (
         "earlyprintk console=ttyAMA0,38400 keep_bootcon "
-        "root=/dev/vda ro init=/init androidboot.hardware=qemu_trusty "
+        "root=/dev/ram0 init=/init androidboot.hardware=qemu_trusty "
         "trusty-log.log_ratelimit_interval=0 trusty-log.log_to_dmesg=always")
 
     def __init__(self, config):
         self.args = []
         self.config = config
 
-    def rpmb_data_snapshot_path(self):
-        return f"{self.config.atf}/RPMB_DATA"
-
     def rpmb_data_path(self):
-        return f"{self.config.atf}/used/RPMB_DATA"
+        return f"{self.config.atf}/RPMB_DATA"
 
     def rpmb_options(self, sock):
         return [
             "-device", "virtio-serial",
             "-device", "virtserialport,chardev=rpmb0,name=rpmb0",
             "-chardev", f"socket,id=rpmb0,path={sock}"]
+
+    def get_android_image_dir(self):
+        return f"{self.config.android}/target/product/trusty"
+
+    def get_initrd_filename(self):
+        # pylint: disable=line-too-long
+        return self.get_android_image_dir() + "/ramdisk.img"
+
+    def initrd_dts(self):
+        file_stats = os.stat(self.get_initrd_filename())
+        start_addr = 0x48000000
+        end_addr = start_addr + file_stats.st_size
+
+        return f"""/ {{
+        chosen {{
+            linux,initrd-start = <0x0 0x{start_addr:08x}>;
+            linux,initrd-end = <0x0 0x{end_addr:08x}>;
+        }};
+    }};
+        """
 
     def gen_dtb(self, args, dtb_tmp_file):
         """Computes a trusty device tree, returning a file for it"""
@@ -67,7 +65,7 @@ class QemuArm64Options(object):
             if returncode != 0:
                 raise RunnerGenericError(
                     f"dumping dtb failed with {returncode}")
-            dtc = f"{self.config.linux}/scripts/dtc/dtc"
+            dtc = "prebuilts/misc/linux-x86/dtc/dtc"
             dtb_to_dts_cmd = [dtc, "-q", "-O", "dts", dtb_gen.name]
             # pylint: disable=consider-using-with
             with subprocess.Popen(dtb_to_dts_cmd,
@@ -81,6 +79,8 @@ class QemuArm64Options(object):
         firmware = f"{self.config.atf}/firmware.android.dts"
         with open(firmware, "r", encoding="utf-8") as firmware_file:
             dts += firmware_file.read()
+
+        dts += self.initrd_dts()
 
         # Subprocess closes dtb, so we can't allow it to autodelete
         dtb = dtb_tmp_file
@@ -96,26 +96,25 @@ class QemuArm64Options(object):
             raise RunnerGenericError(f"dts_to_dtb failed with {dts_to_dtb_ret}")
         return ["-dtb", dtb.name]
 
-    def drives(self) -> list[QemuDrive]:
+    def drive_args(self, image, index):
+        """Generates arguments for mapping a drive"""
+        index_letter = chr(ord('a') + index)
+        image_dir = self.get_android_image_dir()
         return [
-            QemuDrive("userdata", 2),
-            QemuDrive("vendor", 1),
-            QemuDrive("system", 0)
+            "-drive",
+            # pylint: disable=line-too-long
+            f"file={image_dir}/{image}.img,index={index},if=none,id=hd{index_letter},format=raw,snapshot=on",
+            "-device",
+            f"virtio-blk-device,drive=hd{index_letter}"
         ]
-
-    def drive_snapshot_dir(self):
-        return f"{self.config.android}/target/product/trusty"
-
-    def drive_dir(self):
-        return f"{self.drive_snapshot_dir()}/used_drives"
 
     def android_drives_args(self):
         """Generates arguments for mapping all default drives"""
         args = []
-        image_dir = self.drive_dir()
         # This is order sensitive due to using e.g. root=/dev/vda
-        for drive in self.drives():
-            args += drive.args(image_dir)
+        args += self.drive_args("userdata", 2)
+        args += self.drive_args("vendor", 1)
+        args += self.drive_args("system", 0)
         return args
 
     def machine_options(self):
@@ -131,6 +130,8 @@ class QemuArm64Options(object):
         return [
             "-kernel",
             f"{self.config.linux}/arch/{self.config.linux_arch}/boot/Image",
+            "-initrd",
+            self.get_initrd_filename(),
             "-append", self.LINUX_ARGS
         ]
 
