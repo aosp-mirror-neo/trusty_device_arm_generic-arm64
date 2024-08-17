@@ -230,6 +230,7 @@ EXTRA_BUILDDEPS += $(PY3_CMD)
 # List of files we need from Android
 ANDROID_OUT_FILES := \
 	out/host/linux-x86/bin/adb \
+	out/target/product/trusty/ramdisk.img \
 	out/target/product/trusty/system.img \
 	out/target/product/trusty/vendor.img \
 	out/target/product/trusty/userdata.img \
