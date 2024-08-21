@@ -12,7 +12,7 @@ class QemuArm64Options(object):
     MACHINE = "virt,secure=on,virtualization=on"
 
     BASIC_ARGS = [
-        "-nographic", "-cpu", "cortex-a57", "-smp", "4", "-m", "1024", "-d",
+        "-nographic", "-cpu", "max,sve=off,pauth=off", "-smp", "4", "-m", "1024", "-d",
         "unimp", "-semihosting-config", "enable,target=native", "-no-acpi",
     ]
 
