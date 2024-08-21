@@ -2,6 +2,7 @@
 "exec" "`dirname $0`/py3-cmd" "$0" "-c" "`dirname $0`/config.json" "$@"
 
 import argparse
+import logging
 import os
 from typing import List, Optional
 import sys
@@ -109,6 +110,8 @@ def build_argparser():
 
 def main():
     args = build_argparser().parse_args()
+    log_level = logging.DEBUG if args.verbose else logging.WARN
+    logging.basicConfig(level=log_level)
 
     config = qemu.Config(args.config)
     if args.android:
