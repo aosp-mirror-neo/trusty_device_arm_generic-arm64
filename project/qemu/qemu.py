@@ -4,6 +4,7 @@ import enum
 import errno
 import fcntl
 import json
+import logging
 import os
 from textwrap import dedent
 import re
@@ -21,6 +22,7 @@ from typing import Optional, List
 import qemu_options
 from qemu_error import AdbFailure, ConfigError, RunnerGenericError, Timeout
 
+logger = logging.getLogger(__name__)
 
 # ADB expects its first console on 5554, and control on 5555
 ADB_BASE_PORT = 5554
@@ -865,6 +867,7 @@ class Runner(object):
             args += forward_ports(self.session.ports)
 
             qemu_cmd = [self.config.qemu] + args
+            logger.info("qemu command: %s", qemu_cmd)
             self.session.qemu_proc = subprocess.Popen(  # pylint: disable=consider-using-with
                 qemu_cmd,
                 cwd=self.config.atf,
