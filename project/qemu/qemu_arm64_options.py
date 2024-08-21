@@ -1,10 +1,13 @@
 """Generate QEMU options for Trusty test framework"""
 
+import logging
 import os
 import subprocess
 import tempfile
 
 from qemu_error import RunnerGenericError
+
+logger = logging.getLogger(__name__)
 
 
 class QemuArm64Options(object):
@@ -61,12 +64,14 @@ class QemuArm64Options(object):
                 self.config.qemu, "-machine",
                 f"{self.MACHINE},dumpdtb={dtb_gen.name}"
             ] + [arg for arg in args if arg != "-S"]
+            logger.info("dump dtb command: %s", " ".join(dump_dtb_cmd))
             returncode = subprocess.call(dump_dtb_cmd)
             if returncode != 0:
                 raise RunnerGenericError(
                     f"dumping dtb failed with {returncode}")
             dtc = "prebuilts/misc/linux-x86/dtc/dtc"
             dtb_to_dts_cmd = [dtc, "-q", "-O", "dts", dtb_gen.name]
+            logger.info("dtb to dts command: %s", " ".join(dtb_to_dts_cmd))
             # pylint: disable=consider-using-with
             with subprocess.Popen(dtb_to_dts_cmd,
                                   stdout=subprocess.PIPE,
