@@ -1,9 +1,13 @@
 """Generate QEMU options for Trusty test framework"""
 
+import logging
+import os
 import subprocess
 import tempfile
 
 from qemu_error import RunnerGenericError
+
+logger = logging.getLogger(__name__)
 
 
 class QemuArm64Options(object):
@@ -11,13 +15,13 @@ class QemuArm64Options(object):
     MACHINE = "virt,secure=on,virtualization=on"
 
     BASIC_ARGS = [
-        "-nographic", "-cpu", "cortex-a57", "-smp", "4", "-m", "1024", "-d",
+        "-nographic", "-cpu", "max,sve=off,pauth=off", "-smp", "4", "-m", "1024", "-d",
         "unimp", "-semihosting-config", "enable,target=native", "-no-acpi",
     ]
 
     LINUX_ARGS = (
         "earlyprintk console=ttyAMA0,38400 keep_bootcon "
-        "root=/dev/vda ro init=/init androidboot.hardware=qemu_trusty "
+        "root=/dev/ram0 init=/init androidboot.hardware=qemu_trusty "
         "trusty-log.log_ratelimit_interval=0 trusty-log.log_to_dmesg=always")
 
     def __init__(self, config):
@@ -33,6 +37,26 @@ class QemuArm64Options(object):
             "-device", "virtserialport,chardev=rpmb0,name=rpmb0",
             "-chardev", f"socket,id=rpmb0,path={sock}"]
 
+    def get_android_image_dir(self):
+        return f"{self.config.android}/target/product/trusty"
+
+    def get_initrd_filename(self):
+        # pylint: disable=line-too-long
+        return self.get_android_image_dir() + "/ramdisk.img"
+
+    def initrd_dts(self):
+        file_stats = os.stat(self.get_initrd_filename())
+        start_addr = 0x48000000
+        end_addr = start_addr + file_stats.st_size
+
+        return f"""/ {{
+        chosen {{
+            linux,initrd-start = <0x0 0x{start_addr:08x}>;
+            linux,initrd-end = <0x0 0x{end_addr:08x}>;
+        }};
+    }};
+        """
+
     def gen_dtb(self, args, dtb_tmp_file):
         """Computes a trusty device tree, returning a file for it"""
         with tempfile.NamedTemporaryFile() as dtb_gen:
@@ -40,12 +64,14 @@ class QemuArm64Options(object):
                 self.config.qemu, "-machine",
                 f"{self.MACHINE},dumpdtb={dtb_gen.name}"
             ] + [arg for arg in args if arg != "-S"]
+            logger.info("dump dtb command: %s", " ".join(dump_dtb_cmd))
             returncode = subprocess.call(dump_dtb_cmd)
             if returncode != 0:
                 raise RunnerGenericError(
                     f"dumping dtb failed with {returncode}")
             dtc = "prebuilts/misc/linux-x86/dtc/dtc"
             dtb_to_dts_cmd = [dtc, "-q", "-O", "dts", dtb_gen.name]
+            logger.info("dtb to dts command: %s", " ".join(dtb_to_dts_cmd))
             # pylint: disable=consider-using-with
             with subprocess.Popen(dtb_to_dts_cmd,
                                   stdout=subprocess.PIPE,
@@ -58,6 +84,8 @@ class QemuArm64Options(object):
         firmware = f"{self.config.atf}/firmware.android.dts"
         with open(firmware, "r", encoding="utf-8") as firmware_file:
             dts += firmware_file.read()
+
+        dts += self.initrd_dts()
 
         # Subprocess closes dtb, so we can't allow it to autodelete
         dtb = dtb_tmp_file
@@ -76,7 +104,7 @@ class QemuArm64Options(object):
     def drive_args(self, image, index):
         """Generates arguments for mapping a drive"""
         index_letter = chr(ord('a') + index)
-        image_dir = f"{self.config.android}/target/product/trusty"
+        image_dir = self.get_android_image_dir()
         return [
             "-drive",
             # pylint: disable=line-too-long
@@ -107,6 +135,8 @@ class QemuArm64Options(object):
         return [
             "-kernel",
             f"{self.config.linux}/arch/{self.config.linux_arch}/boot/Image",
+            "-initrd",
+            self.get_initrd_filename(),
             "-append", self.LINUX_ARGS
         ]
 
