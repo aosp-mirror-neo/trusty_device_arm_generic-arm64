@@ -911,7 +911,10 @@ class Runner(object):
 
         # Clean up generated device tree
         for temp_file in self.session.temp_files:
-            os.remove(temp_file)
+            try:
+                os.remove(temp_file)
+            except OSError:
+                pass
 
         if self.session.has_error:
             self.error_dump_output()
