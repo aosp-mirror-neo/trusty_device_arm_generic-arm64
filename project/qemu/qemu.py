@@ -77,6 +77,7 @@ class Config(object):
 
         if android_path := abspath("android"):
             self.android = find_android_build_dir(android_path)
+            self.image_dir = os.path.join(self.android, "target/product/trusty")
         else:
             self.android = None
         self.linux = abspath("linux")
@@ -238,12 +239,12 @@ class QEMUCommandPipe(object):
             cmp_command["arguments"] = arguments
         return self.qmp_command(cmp_command)
 
-    def monitor_command(self, monitor_command):
+    def monitor_command(self, monitor_command, log_return=True):
         """Send a monitor command and write result to stderr."""
 
         res = self.qmp_execute("human-monitor-command",
                                {"command-line": monitor_command})
-        if res and "return" in res:
+        if log_return and res and "return" in res:
             sys.stderr.write(res["return"])
 
 
@@ -264,7 +265,7 @@ def qemu_handle_error(command_pipe, debug_on_error):
 
 
 def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
-    """Ensures QEMU is terminated"""
+    """Ensures QEMU is terminated. Tries to write to drive image files."""
     unclean_exit = False
 
     if command_pipe:
@@ -329,6 +330,7 @@ class Runner(object):
 
     def __init__(self,
                  config,
+                 instance_dir: os.PathLike,
                  interactive=False,
                  verbose=False,
                  rpmb=True,
@@ -351,10 +353,10 @@ class Runner(object):
         self.msg_sock_dir = None
         self.debug_on_error = debug_on_error
         self.dump_stdout_on_error = False
-        self.qemu_arch_options = None
         self.default_timeout = 60 * 10  # 10 Minutes
         self.session: Optional[RunnerSession] = None
         self.state = RunnerState.OFF
+        self.instance_dir = instance_dir
 
         # If we're not verbose or interactive, squelch command output
         if verbose or self.interactive:
@@ -372,10 +374,11 @@ class Runner(object):
             self.stdin = subprocess.DEVNULL
 
         if self.config.arch in ("arm64", "arm"):
-            self.qemu_arch_options = qemu_options.QemuArm64Options(self.config)
+            self.qemu_arch_options = qemu_options.QemuArm64Options(
+                self.config, self.instance_dir)
         elif self.config.arch == "x86_64":
             # pylint: disable=no-member
-            self.qemu_arch_options = qemu_options.QemuX86_64Options(self.config)
+            self.qemu_arch_options = qemu_options.QemuX86_64Options(self.config) # type: ignore[attr-defined]
         else:
             raise ConfigError("Architecture unspecified or unsupported!")
 
@@ -492,7 +495,7 @@ class Runner(object):
         if self.msg_sock_conn:
             self.msg_sock_conn.close()
 
-    def boottest_run(self, boot_tests, timeout=(60 * 2)):
+    def boottest_run(self, boot_tests, timeout=60 * 2):
         """Run boot test cases"""
         args = self.session.args
         has_error = False
@@ -568,7 +571,8 @@ class Runner(object):
                             break
                         except IOError as e:
                             if e.errno != errno.EAGAIN:
-                                RunnerGenericError("Failed to print message")
+                                raise RunnerGenericError(
+                                    "Failed to print message") from e
                             select.select([], [sys.stdout], [])
 
                 # Please align message structure definition in testrunner.
@@ -823,7 +827,11 @@ class Runner(object):
 
         try:
             if self.use_rpmb:
+                self.qemu_arch_options.create_rpmb_data()
                 args += self.rpmb_up()
+
+            if self.config.android:
+                self.qemu_arch_options.create_drives_data()
 
             if self.config.linux:
                 args += self.qemu_arch_options.gen_dtb(
@@ -897,7 +905,7 @@ class Runner(object):
             self.session.has_error = True
             raise
 
-    def shutdown(self):
+    def shutdown(self, factory_reset: bool, full_wipe: bool):
         """Shut down emulator after test cases have run
 
         The launch and shutdown methods store shared state in a session object.
@@ -911,7 +919,10 @@ class Runner(object):
 
         # Clean up generated device tree
         for temp_file in self.session.temp_files:
-            os.remove(temp_file)
+            try:
+                os.remove(temp_file)
+            except OSError:
+                pass
 
         if self.session.has_error:
             self.error_dump_output()
@@ -932,19 +943,32 @@ class Runner(object):
             # Disconnect ADB and wait for our port to be released by qemu
             self.adb_down(self.session.ports[1])
 
+        # Ideally, we'd clear on launch instead, but it doesn't know whether a
+        # clear should happen. We can't change launch to take factory_reset and
+        # full_wipe args because TrustyRebootCommand doesn't call launch, only
+        # shutdown. (The next test that runs after a reboot will re-launch when
+        # it notices the runner is down, but that test doesn't have the
+        # RebootMode info from the reboot.)
+        if factory_reset:
+            self.qemu_arch_options.delete_drives_data()
+        if full_wipe:
+            assert factory_reset, (
+                "Cannot perform a full wipe without factory resetting.")
+            self.qemu_arch_options.delete_rpmb_data()
+
         self.session = None
         self.state = RunnerState.OFF
 
         if unclean_exit:
             raise RunnerGenericError("QEMU did not exit cleanly")
 
-    def reboot(self, target_state):
-        self.shutdown()
+    def reboot(self, target_state, factory_reset: bool, full_wipe: bool):
+        self.shutdown(factory_reset, full_wipe)
 
         try:
             self.launch(target_state)
         except:
-            self.shutdown()
+            self.shutdown(factory_reset, full_wipe)
             raise
 
     def run(self, boot_tests: Optional[List] = None,
@@ -1006,4 +1030,4 @@ class Runner(object):
             if self.interactive and self.session:
                 # The user is responsible for quitting QEMU
                 self.session.qemu_proc.wait()
-            self.shutdown()
+            self.shutdown(factory_reset=True, full_wipe=False)
