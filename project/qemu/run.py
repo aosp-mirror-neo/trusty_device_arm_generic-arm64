@@ -17,8 +17,9 @@ __all__ = ["init", "run_test", "shutdown"]
 TRUSTY_PROJECT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
 
-def init(*, android=None, disable_rpmb=False, verbose=False,
-         debug_on_error=False) -> qemu.Runner:
+def init(*, android=None, instance_dir: os.PathLike, disable_rpmb=False,
+         verbose=False, debug_on_error=False
+) -> qemu.Runner:
 
     with open(f"{TRUSTY_PROJECT_FOLDER}/config.json", encoding="utf-8") as json:
         config = qemu.Config(json)
@@ -28,6 +29,7 @@ def init(*, android=None, disable_rpmb=False, verbose=False,
 
     runner = qemu.Runner(config,
                          interactive=False,
+                         instance_dir=instance_dir,
                          verbose=verbose,
                          rpmb=not disable_rpmb,
                          debug=False,
@@ -65,7 +67,7 @@ def _prepare_runner_for_test(runner, args):
     # Due to limitations in the test runner, always reboot between boot tests
     if (runner.state != target_state or
             runner.state == qemu.RunnerState.BOOTLOADER):
-        runner.reboot(target_state)
+        runner.reboot(target_state, factory_reset=True, full_wipe=False)
 
 
 def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
@@ -83,9 +85,11 @@ def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
         "Command contained neither a boot test nor an Android test to run")
 
 
-def shutdown(runner: Optional[qemu.Runner]):
+def shutdown(runner: Optional[qemu.Runner],
+             factory_reset: bool = True,
+             full_wipe: bool = False):
     if runner:
-        runner.shutdown()
+        runner.shutdown(factory_reset, full_wipe)
 
 
 def build_argparser():
@@ -99,6 +103,8 @@ def build_argparser():
     argument_parser.add_argument("--shell-command", action="append")
     argument_parser.add_argument("--android")
     argument_parser.add_argument("--linux")
+    argument_parser.add_argument("--instance-dir", type=str,
+                                 default="/tmp/trusty-qemu-generic-arm64")
     argument_parser.add_argument("--atf")
     argument_parser.add_argument("--qemu")
     argument_parser.add_argument("--arch")
@@ -129,6 +135,7 @@ def main():
 
     runner = qemu.Runner(config,
                          interactive=not args.headless,
+                         instance_dir=args.instance_dir,
                          verbose=args.verbose,
                          rpmb=not args.disable_rpmb,
                          debug=args.debug,
