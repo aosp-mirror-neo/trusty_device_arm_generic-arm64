@@ -27,31 +27,50 @@ logger = logging.getLogger(__name__)
 # ADB expects its first console on 5554, and control on 5555
 ADB_BASE_PORT = 5554
 
+_TRUSTY_PRODUCT_PATH = "target/product/trusty"
+_ANDROID_HOST_PATH = "host/linux-x86"
 
 def find_android_build_dir(android):
-    if os.path.exists(f"{android}/target/product/trusty"):
+    if os.path.exists(os.path.join(android, _TRUSTY_PRODUCT_PATH)):
         return android
-    if os.path.exists(f"{android}/out/target/product/trusty"):
-        return f"{android}/out"
+    if os.path.exists(os.path.join(android, "out", _TRUSTY_PRODUCT_PATH)):
+        return os.path.join(android, "out")
 
     print(f"{android} not an Android source or build directory")
     sys.exit(1)
+
+
+def find_android_image_dir(android):
+    return os.path.join(find_android_build_dir(android), _TRUSTY_PRODUCT_PATH)
+
+def find_adb_path(android):
+    return os.path.join(find_android_build_dir(android), _ANDROID_HOST_PATH, "bin/adb")
 
 
 class Config(object):
     """Stores a QEMU configuration for use with the runner
 
     Attributes:
-        android:          Path to a built Android tree or prebuilt.
-        linux:            Path to a built Linux kernel tree or prebuilt.
+        boot_android:     Boolean indicating to boot Android. Setting the
+                          "android" config option to a path containing a
+                          built Android tree or prebuilt will implicitly
+                          set this attribute to true
+        android_image_dir: Path to directory containing Android images.
+                           Can be set by providing a built Android tree
+                           or prebuilt with the "android" config option.
+                           Implies booting android.
+        linux:            Path to a built Linux kernel tree or prebuilt
+                          kernel image.
         linux_arch:       Architecture of Linux kernel.
         atf:              Path to the ATF build to use.
         qemu:             Path to the emulator to use.
         arch:             Architecture definition.
         rpmbd:            Path to the rpmb daemon to use.
+        adb:              Path to adb host tool.
         extra_qemu_flags: Extra flags to pass to QEMU.
-    Setting android or linux to None will result in a QEMU which starts
-    without those components.
+    Setting android or linux to a false value will result in a QEMU which starts
+    without those components. Only one of android and android_image_dir may be provided
+    in the config.
     """
 
     def __init__(self, config=None):
@@ -75,11 +94,20 @@ class Config(object):
                 return os.path.join(self.script_dir, config_value)
             return None
 
+        if config_dict.get("android") and config_dict.get("android_image_dir"):
+            raise ConfigError("Config may only have one of android and android_image_dir")
+
+        self.adb = abspath("adb")
         if android_path := abspath("android"):
-            self.android = find_android_build_dir(android_path)
-            self.image_dir = os.path.join(self.android, "target/product/trusty")
+            logger.error("`android` config setting is deprecated. Please replace with "
+                         "`android_image_dir` and `adb` config entries.")
+            android_out = find_android_build_dir(android_path)
+            self.android_image_dir = os.path.join(android_out, _TRUSTY_PRODUCT_PATH)
+            if self.adb is None:
+                self.adb = os.path.join(android_out, _ANDROID_HOST_PATH, "bin/adb")
         else:
-            self.android = None
+            self.android_image_dir = abspath("android_image_dir")
+        self.boot_android = self.android_image_dir is not None
         self.linux = abspath("linux")
         self.linux_arch = config_dict.get("linux_arch")
         self.atf = abspath("atf")
@@ -95,7 +123,7 @@ class Config(object):
         if android_tests:
             if not self.linux:
                 raise ConfigError("Need Linux to run android tests")
-            if not self.android:
+            if not self.boot_android:
                 raise ConfigError("Need Android to run android tests")
 
         # For now, we can't run boot tests and android tests at the same time,
@@ -113,9 +141,15 @@ class Config(object):
             if interactive:
                 raise ConfigError("Cannot run boot tests interactively")
 
-        if self.android:
+        if self.boot_android:
             if not self.linux:
                 raise ConfigError("Cannot run Android without Linux")
+
+            if not self.android_image_dir:
+                raise ConfigError("Missing android_image_dir for Android")
+
+            if not self.adb:
+                raise ConfigError("Missing adb tool for Android")
 
 
 def alloc_ports():
@@ -626,7 +660,7 @@ class Runner(object):
 
     def adb_bin(self):
         """Returns location of adb"""
-        return f"{self.config.android}/host/linux-x86/bin/adb"
+        return self.config.adb
 
     def adb(self,
             args,
@@ -788,7 +822,7 @@ class Runner(object):
         if self.config.linux:
             args += self.qemu_arch_options.linux_options()
 
-        if self.config.android:
+        if self.config.boot_android:
             args += self.qemu_arch_options.android_drives_args()
 
         # Append configured extra flags
@@ -830,7 +864,7 @@ class Runner(object):
                 self.qemu_arch_options.create_rpmb_data()
                 args += self.rpmb_up()
 
-            if self.config.android:
+            if self.config.boot_android:
                 self.qemu_arch_options.create_drives_data()
 
             if self.config.linux:
