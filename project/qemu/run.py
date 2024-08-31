@@ -25,7 +25,9 @@ def init(*, android=None, instance_dir: os.PathLike, disable_rpmb=False,
         config = qemu.Config(json)
 
     if android:
-        config.android = qemu.find_android_build_dir(android)
+        config.android_image_dir = qemu.find_android_image_dir(android)
+        config.adb = qemu.find_adb_path(android)
+        config.boot_android = True
 
     runner = qemu.Runner(config,
                          interactive=False,
@@ -121,7 +123,9 @@ def main():
 
     config = qemu.Config(args.config)
     if args.android:
-        config.android = qemu.find_android_build_dir(args.android)
+        config.android_image_dir = qemu.find_android_image_dir(args.android)
+        config.adb = qemu.find_adb_path(args.android)
+        config.boot_android = True
     if args.linux:
         config.linux = args.linux
     if args.atf:
