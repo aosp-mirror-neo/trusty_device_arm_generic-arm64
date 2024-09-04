@@ -22,11 +22,18 @@
 
 # This Makefile will build the Linux kernel with our configuration.
 
+LINUX_VERSION := 6.6
+
 LINUX_BUILD_DIR := $(abspath $(BUILDDIR)/linux-build)
 ifndef LINUX_ARCH
 	$(error LINUX_ARCH must be specified)
 endif
 
+LINUX_PREBUILTS_IMAGE := kernel/prebuilts/${LINUX_VERSION}/${LINUX_ARCH}/kernel-${LINUX_VERSION}
+
+LINUX_IMAGE := $(LINUX_BUILD_DIR)/arch/$(LINUX_ARCH)/boot/Image
+
+ifeq (,$(wildcard $(LINUX_PREBUILTS_IMAGE)))
 ifeq ($(LINUX_ARCH),arm)
 LINUX_CLANG_TRIPLE := $(LINUX_ARCH)-linux-gnueabi-
 else
@@ -47,8 +54,6 @@ LINUX_DEFCONFIG_FRAGMENTS := \
 	$(LINUX_CONFIG_DIR)/trusty_qemu_defconfig.fragment \
 
 endif
-
-LINUX_IMAGE := $(LINUX_BUILD_DIR)/arch/$(LINUX_ARCH)/boot/Image
 
 $(LINUX_IMAGE): LINUX_TMP_DEFCONFIG := $(LINUX_CONFIG_DIR)/tmp_defconfig
 $(LINUX_IMAGE): LINUX_SRC := $(LINUX_SRC)
@@ -82,6 +87,18 @@ $(LINUX_IMAGE): .PHONY
 	PATH=$(CLANG_BINDIR):$(PATH) $(MAKE) $(LINUX_MAKE_ARGS) $(notdir $(LINUX_TMP_DEFCONFIG))
 	rm $(LINUX_TMP_DEFCONFIG)
 	PATH=$(CLANG_BINDIR):$(PATH) $(MAKE) $(LINUX_MAKE_ARGS)
+
+else
+$(LINUX_BUILD_DIR): $(LINUX_PREBUILTS_IMAGE)
+	@echo copying Linux prebuilts
+	@rm -rf $@
+	@$(MKDIR)
+
+$(LINUX_IMAGE): $(LINUX_BUILD_DIR)
+	@mkdir -p $(@D)
+	@cp -r ${LINUX_PREBUILTS_IMAGE} $@
+
+endif
 
 # Add LINUX_IMAGE to the list of project dependencies
 EXTRA_BUILDDEPS += $(LINUX_IMAGE)
