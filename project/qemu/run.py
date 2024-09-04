@@ -2,6 +2,7 @@
 "exec" "`dirname $0`/py3-cmd" "$0" "-c" "`dirname $0`/config.json" "$@"
 
 import argparse
+import logging
 import os
 from typing import List, Optional
 import sys
@@ -16,17 +17,21 @@ __all__ = ["init", "run_test", "shutdown"]
 TRUSTY_PROJECT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
 
-def init(*, android=None, disable_rpmb=False, verbose=False,
-         debug_on_error=False) -> qemu.Runner:
+def init(*, android=None, instance_dir: os.PathLike, disable_rpmb=False,
+         verbose=False, debug_on_error=False
+) -> qemu.Runner:
 
     with open(f"{TRUSTY_PROJECT_FOLDER}/config.json", encoding="utf-8") as json:
         config = qemu.Config(json)
 
     if android:
-        config.android = qemu.find_android_build_dir(android)
+        config.android_image_dir = qemu.find_android_image_dir(android)
+        config.adb = qemu.find_adb_path(android)
+        config.boot_android = True
 
     runner = qemu.Runner(config,
                          interactive=False,
+                         instance_dir=instance_dir,
                          verbose=verbose,
                          rpmb=not disable_rpmb,
                          debug=False,
@@ -100,6 +105,8 @@ def build_argparser():
     argument_parser.add_argument("--shell-command", action="append")
     argument_parser.add_argument("--android")
     argument_parser.add_argument("--linux")
+    argument_parser.add_argument("--instance-dir", type=str,
+                                 default="/tmp/trusty-qemu-generic-arm64")
     argument_parser.add_argument("--atf")
     argument_parser.add_argument("--qemu")
     argument_parser.add_argument("--arch")
@@ -111,10 +118,14 @@ def build_argparser():
 
 def main():
     args = build_argparser().parse_args()
+    log_level = logging.DEBUG if args.verbose else logging.WARN
+    logging.basicConfig(level=log_level)
 
     config = qemu.Config(args.config)
     if args.android:
-        config.android = qemu.find_android_build_dir(args.android)
+        config.android_image_dir = qemu.find_android_image_dir(args.android)
+        config.adb = qemu.find_adb_path(args.android)
+        config.boot_android = True
     if args.linux:
         config.linux = args.linux
     if args.atf:
@@ -128,6 +139,7 @@ def main():
 
     runner = qemu.Runner(config,
                          interactive=not args.headless,
+                         instance_dir=args.instance_dir,
                          verbose=args.verbose,
                          rpmb=not args.disable_rpmb,
                          debug=args.debug,
