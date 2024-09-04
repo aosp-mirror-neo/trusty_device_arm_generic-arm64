@@ -16,6 +16,7 @@
 # Package binary build of Trusty, QEMU, AOSP, and scripts for standalone use
 
 # Inputs:
+# QEMU_PACKAGE_ARCHIVE: output package archive to create (.zip or .tar.gz)
 # QEMU_PACKAGE_FILES: files and folders to include in the package archive
 # 		These files/folders must be valid make targets, as they will be included
 # 		as pre-requisites to the package zip.
@@ -23,16 +24,26 @@
 # 		package archive, which are not make targets. These files must be created
 # 		by a target in QEMU_PACKAGE_FILES.
 
-QEMU_PACKAGE_ZIP := $(BUILDDIR)/trusty_qemu_package.zip
 QEMU_PACKAGE_LICENSE := $(BUILDDIR)/LICENSE
 
+ifeq (,$(QEMU_PREBUILTS))
 QEMU_PACKAGE_LICENSE_FILES := \
 	$(call FIND_EXTERNAL,qemu/LICENSE) \
 	$(call FIND_EXTERNAL,qemu/COPYING) \
 	$(call FIND_EXTERNAL,linux/COPYING) \
 	$(call FIND_EXTERNAL,linux/LICENSES/preferred/GPL-2.0) \
 	$(call FIND_EXTERNAL,linux/LICENSES/exceptions/Linux-syscall-note) \
+
+else
+QEMU_PACKAGE_LICENSE_FILES := $(QEMU_PREBUILTS)/../NOTICE
+endif
+
+QEMU_PACKAGE_LICENSE_FILES += \
 	$(call FIND_EXTERNAL,arm-trusted-firmware/docs/license.rst) \
+	prebuilts/android-emulator/NOTICE \
+
+# Some of these files might be missing
+QEMU_PACKAGE_LICENSE_FILES := $(wildcard $(QEMU_PACKAGE_LICENSE_FILES))
 
 # TODO: Unify with SDK license construction when it lands
 $(QEMU_PACKAGE_LICENSE): LOCAL_DIR := $(GET_LOCAL_DIR)
@@ -50,20 +61,37 @@ $(QEMU_PACKAGE_LICENSE): $(QEMU_PACKAGE_LICENSE_FILES)
 
 QEMU_PACKAGE_FILES += $(QEMU_PACKAGE_LICENSE)
 
-$(QEMU_PACKAGE_ZIP): BUILDDIR := $(BUILDDIR)
-$(QEMU_PACKAGE_ZIP): QEMU_PACKAGE_EXTRA_FILES := $(QEMU_PACKAGE_EXTRA_FILES)
-$(QEMU_PACKAGE_ZIP): $(QEMU_PACKAGE_FILES)
+ifneq (,$(filter %.zip,$(QEMU_PACKAGE_ARCHIVE)))
+$(QEMU_PACKAGE_ARCHIVE): BUILDDIR := $(BUILDDIR)
+$(QEMU_PACKAGE_ARCHIVE): QEMU_PACKAGE_EXTRA_FILES := $(QEMU_PACKAGE_EXTRA_FILES)
+$(QEMU_PACKAGE_ARCHIVE): $(QEMU_PACKAGE_FILES)
 	@$(MKDIR)
 	@echo Creating QEMU archive package
 	$(NOECHO)rm -f $@
 	$(NOECHO)(cd $(BUILDDIR) && zip -q -u -r $@ $(subst $(BUILDDIR)/,,$^))
 	$(NOECHO)(cd $(BUILDDIR) && zip -q -u -r $@ $(subst $(BUILDDIR)/,,$(QEMU_PACKAGE_EXTRA_FILES)))
+else
 
-EXTRA_BUILDDEPS += $(QEMU_PACKAGE_ZIP)
+ifneq (,$(filter %.tar.gz,$(QEMU_PACKAGE_ARCHIVE)))
+$(QEMU_PACKAGE_ARCHIVE): BUILDDIR := $(BUILDDIR)
+$(QEMU_PACKAGE_ARCHIVE): QEMU_PACKAGE_EXTRA_FILES := $(QEMU_PACKAGE_EXTRA_FILES)
+$(QEMU_PACKAGE_ARCHIVE): $(QEMU_PACKAGE_FILES)
+	@$(MKDIR)
+	@echo Creating QEMU archive package
+	$(NOECHO)rm -f $@
+	$(NOECHO)(cd $(BUILDDIR) && tar -c -z -f $@ $(subst $(BUILDDIR)/,,$^) $(subst $(BUILDDIR)/,,$(QEMU_PACKAGE_EXTRA_FILES)))
+
+else
+$(error QEMU_PACKAGE_ARCHIVE must end in either .zip or .tar.gz)
+endif
+
+endif
+
+EXTRA_BUILDDEPS += $(QEMU_PACKAGE_ARCHIVE)
 
 QEMU_PACKAGE_CONFIG :=
 QEMU_PACKAGE_FILES :=
 QEMU_PACKAGE_EXTRA_FILES :=
 QEMU_PACKAGE_LICENSE :=
 QEMU_PACKAGE_LICENSE_FILES :=
-QEMU_PACKAGE_ZIP :=
+QEMU_PACKAGE_ARCHIVE :=
