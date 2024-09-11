@@ -120,10 +120,13 @@ else
 # We have prebuilts, copy them into the build directory
 QEMU_BIN := $(QEMU_BUILD_BASE)/bin/qemu-system-$(QEMU_ARCH)
 
+# The qemu prebuilts now contain an Android.bp file.
+# We do not want it in the build directory because Soong reads it.
 $(QEMU_BUILD_BASE): $(QEMU_PREBUILTS)
 	@echo creating qemu output directory
 	@rm -rf $@
 	@cp -r $< $@
+	@rm -f $@/Android.bp
 
 # The binary is inside the build directory, so create
 # an empty dependency between them
