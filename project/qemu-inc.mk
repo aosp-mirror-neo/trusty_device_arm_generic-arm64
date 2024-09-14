@@ -120,10 +120,13 @@ else
 # We have prebuilts, copy them into the build directory
 QEMU_BIN := $(QEMU_BUILD_BASE)/bin/qemu-system-$(QEMU_ARCH)
 
+# The qemu prebuilts now contain an Android.bp file.
+# We do not want it in the build directory because Soong reads it.
 $(QEMU_BUILD_BASE): $(QEMU_PREBUILTS)
 	@echo creating qemu output directory
 	@rm -rf $@
 	@cp -r $< $@
+	@rm -f $@/Android.bp
 
 # The binary is inside the build directory, so create
 # an empty dependency between them
@@ -272,12 +275,16 @@ ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES
 # ANDROID_OUT_BUILD_DIR preserving the directory structure relative to the
 # top-level ANDROID_OUT_SRC_DIR directory
 $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_SRC_DIR := $(ANDROID_OUT_SRC_DIR)
+$(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_IMAGE_DIR)
 $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_FILES := $(ANDROID_OUT_FILES)
-$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES)
+$(ANDROID_OUT_BUILD_DIR): LINUX_RAMDISK_IMAGE := $(LINUX_RAMDISK_IMAGE)
+$(ANDROID_OUT_BUILD_DIR): RAMDISK_CP := $(if $(LINUX_RAMDISK_IMAGE),cp,/bin/true)
+$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES) $(LINUX_RAMDISK_IMAGE)
 	@echo creating Android output directory
 	@rm -rf $@
 	@mkdir -p $@
 	@cd $(ANDROID_OUT_SRC_DIR) && cp -r --parents -t $@ $(ANDROID_OUT_FILES)
+	@$(RAMDISK_CP) $(LINUX_RAMDISK_IMAGE) $(ANDROID_OUT_IMAGE_DIR)/ramdisk.img
 
 EXTRA_BUILDDEPS += $(ANDROID_OUT_BUILD_DIR)
 
@@ -380,6 +387,7 @@ ATF_SYMLINKS :=
 LINUX_ARCH :=
 LINUX_BUILD_DIR :=
 LINUX_IMAGE :=
+LINUX_RAMDISK_IMAGE :=
 RUN_SCRIPT :=
 TEST_RUNNER_BIN :=
 QEMU_BIN :=
