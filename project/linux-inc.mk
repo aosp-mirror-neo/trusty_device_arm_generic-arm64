@@ -63,8 +63,8 @@ endif
 ifeq (,$(LINUX_TRUSTY_INTREE))
 LINUX_DEFCONFIG_FRAGMENTS += \
 	linux/common-modules/trusty/arm_ffa.fragment \
+	linux/common-modules/trusty/system_heap.fragment \
 	linux/common-modules/trusty/trusty_defconfig.fragment \
-	linux/common-modules/trusty/trusty_test.fragment \
 	linux/common-modules/virtual-device/aarch64.fragment \
 	linux/common-modules/virtual-device/virtual_device_core.fragment \
 
