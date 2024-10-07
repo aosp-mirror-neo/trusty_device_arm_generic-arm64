@@ -120,10 +120,13 @@ else
 # We have prebuilts, copy them into the build directory
 QEMU_BIN := $(QEMU_BUILD_BASE)/bin/qemu-system-$(QEMU_ARCH)
 
+# The qemu prebuilts now contain an Android.bp file.
+# We do not want it in the build directory because Soong reads it.
 $(QEMU_BUILD_BASE): $(QEMU_PREBUILTS)
 	@echo creating qemu output directory
 	@rm -rf $@
 	@cp -r $< $@
+	@rm -f $@/Android.bp
 
 # The binary is inside the build directory, so create
 # an empty dependency between them
@@ -150,16 +153,26 @@ RUN_PY := $(BUILDDIR)/run.py
 $(ATF_OUT_DIR):
 	mkdir -p $@
 
+# ATF built binaries
+ATF_BIN := $(ATF_OUT_DIR)/bl31.bin
+ATF_EXTRA_BINS := \
+	$(ATF_OUT_DIR)/bl1.bin \
+	$(ATF_OUT_DIR)/bl2.bin \
+
 # For ATF bootloader semihosting calls, bl32 and bl33 need to be in place
 ATF_SYMLINKS := \
 	$(ATF_OUT_DIR)/bl32.bin \
 	$(ATF_OUT_DIR)/bl33.bin \
 
+$(ATF_OUT_DIR)/bl32.bin: BUILDDIR := $(BUILDDIR)
+$(ATF_OUT_DIR)/bl32.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl32.bin: $(BL32_BIN) $(ATF_OUT_DIR)
-	ln -sf $(abspath $<) $@
+	$(NOECHO)ln -rsf $< $@
 
+$(ATF_OUT_DIR)/bl33.bin: BUILDDIR := $(BUILDDIR)
+$(ATF_OUT_DIR)/bl33.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
-	ln -sf $(abspath $<) $@
+	$(NOECHO)ln -rsf $< $@
 
 ATF_OUT_COPIED_FILES := \
 	$(ATF_OUT_DIR)/firmware.android.dts \
@@ -245,6 +258,9 @@ ANDROID_OUT_FILES := \
 # the target directory to the same state as with a clean build.
 ANDROID_OUT_BUILD_DIR := $(BUILDDIR)/aosp/android
 
+ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_BUILD_DIR)/out/target/product/trusty
+ANDROID_OUT_ADB_PATH := $(ANDROID_OUT_BUILD_DIR)/out/host/linux-x86/bin/adb
+
 ifneq (,$(ANDROID_BUILD_TOP))
 # We are building Trusty inside an Android environment,
 # which means we can use a fresh Android build instead of prebuilts
@@ -259,12 +275,16 @@ ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES
 # ANDROID_OUT_BUILD_DIR preserving the directory structure relative to the
 # top-level ANDROID_OUT_SRC_DIR directory
 $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_SRC_DIR := $(ANDROID_OUT_SRC_DIR)
+$(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_IMAGE_DIR)
 $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_FILES := $(ANDROID_OUT_FILES)
-$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES)
+$(ANDROID_OUT_BUILD_DIR): LINUX_RAMDISK_IMAGE := $(LINUX_RAMDISK_IMAGE)
+$(ANDROID_OUT_BUILD_DIR): RAMDISK_CP := $(if $(LINUX_RAMDISK_IMAGE),cp,/bin/true)
+$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES) $(LINUX_RAMDISK_IMAGE)
 	@echo creating Android output directory
 	@rm -rf $@
 	@mkdir -p $@
 	@cd $(ANDROID_OUT_SRC_DIR) && cp -r --parents -t $@ $(ANDROID_OUT_FILES)
+	@$(RAMDISK_CP) $(LINUX_RAMDISK_IMAGE) $(ANDROID_OUT_IMAGE_DIR)/ramdisk.img
 
 EXTRA_BUILDDEPS += $(ANDROID_OUT_BUILD_DIR)
 
@@ -275,7 +295,8 @@ $(QEMU_CONFIG): EXTRA_QEMU_FLAGS := ["-machine", "gic-version=$(GIC_VERSION)"]
 $(QEMU_CONFIG): ATF_OUT_DIR := $(subst $(BUILDDIR)/,,$(ATF_OUT_DIR))
 $(QEMU_CONFIG): LINUX_BUILD_DIR := $(subst $(BUILDDIR)/,,$(LINUX_BUILD_DIR))
 $(QEMU_CONFIG): LINUX_ARCH := $(LINUX_ARCH)
-$(QEMU_CONFIG): ANDROID_OUT_BUILD_DIR := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_BUILD_DIR))
+$(QEMU_CONFIG): ANDROID_OUT_IMAGE_DIR := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_IMAGE_DIR))
+$(QEMU_CONFIG): ANDROID_OUT_ADB_PATH := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_ADB_PATH))
 $(QEMU_CONFIG): RPMB_DEV := $(subst $(BUILDDIR)/,,$(RPMB_DEV))
 $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 	@echo generating $@
@@ -284,7 +305,8 @@ $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 	@echo '  "atf": "$(ATF_OUT_DIR)", ' >> $@
 	@echo '  "qemu": "$(QEMU_BIN)", ' >> $@
 	@echo '  "extra_qemu_flags": $(EXTRA_QEMU_FLAGS), ' >> $@
-	@echo '  "android": "$(ANDROID_OUT_BUILD_DIR)", ' >> $@
+	@echo '  "android_image_dir": "$(ANDROID_OUT_IMAGE_DIR)", ' >> $@
+	@echo '  "adb": "$(ANDROID_OUT_ADB_PATH)", ' >> $@
 	@echo '  "rpmbd": "$(RPMB_DEV)", ' >> $@
 	@echo '  "arch": "$(ARCH)" }' >> $@
 
@@ -312,16 +334,46 @@ ifeq (true,$(call TOBOOL,$(PACKAGE_QEMU_TRUSTY)))
 # Files & directories to copy into QEMU package archive
 QEMU_PACKAGE_FILES := \
 	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) $(QEMU_CONFIG) $(RPMB_DEV) \
-	$(RUN_SCRIPT) $(STOP_SCRIPT) $(ANDROID_OUT_BUILD_DIR) \
-	$(QEMU_BIN) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/bl31.bin \
+	$(RUN_SCRIPT) $(STOP_SCRIPT) \
+	$(QEMU_BIN) $(ATF_BIN) $(ATF_SYMLINKS) \
 	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) $(LINUX_IMAGE) \
+
+ifneq (true,$(call TOBOOL,$(PACKAGE_QEMU_WITHOUT_ANDROID)))
+# The Android prebuilts are pretty large and not all users need them
+QEMU_PACKAGE_FILES += $(ANDROID_OUT_BUILD_DIR)
+endif
 
 # Other files/directories that should be included in the package but which are
 # not make targets and therefore cannot be pre-requisites. The target that
 # creates these files must be in the QEMU_PACKAGE_FILES variable.
 QEMU_PACKAGE_EXTRA_FILES := \
-	$(LINUX_BUILD_DIR)/arch $(LINUX_BUILD_DIR)/scripts $(ATF_BUILD_BASE) \
-	$(QEMU_BUILD_BASE) \
+	$(LINUX_BUILD_DIR)/scripts \
+	$(QEMU_BUILD_BASE) $(ATF_EXTRA_BINS) \
+
+QEMU_PACKAGE_ARCHIVE := $(BUILDDIR)/trusty_qemu_package.zip
+
+include project/qemu-package-inc.mk
+endif
+
+ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES)))
+
+# Files & directories to copy into Trusty image archive for use with QEMU
+# emulator. This does not include the QEMU emulator itself, which is located in
+# prebuilts/android-emulator/trusty-x86_64/ and part of the trusty qemu device
+# host package built in AOSP.
+QEMU_PACKAGE_FILES := \
+	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) \
+	$(STOP_SCRIPT) \
+	$(ATF_BIN) $(ATF_SYMLINKS) $(TEST_RUNNER_BIN) \
+	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) \
+
+# Other files/directories that should be included in the package but which are
+# not make targets and therefore cannot be pre-requisites. The target that
+# creates these files must be in the QEMU_PACKAGE_FILES variable.
+QEMU_PACKAGE_EXTRA_FILES := \
+	$(ATF_EXTRA_BINS) \
+
+QEMU_PACKAGE_ARCHIVE := $(BUILDDIR)/trusty_image_package.tar.gz
 
 include project/qemu-package-inc.mk
 endif
@@ -330,13 +382,17 @@ ANDROID_OUT_FILES :=
 ANDROID_OUT_BUILD_DIR :=
 ANDROID_OUT_SRC_DIR :=
 ANDROID_OUT_SRC_FILES :=
+ATF_BIN :=
 ATF_BUILD_BASE :=
+ATF_EXTRA_BINS :=
 ATF_OUT_COPIED_FILES :=
 ATF_OUT_DIR :=
+ATF_RELATIVE_TO_BUILD_BASE :=
 ATF_SYMLINKS :=
 LINUX_ARCH :=
 LINUX_BUILD_DIR :=
 LINUX_IMAGE :=
+LINUX_RAMDISK_IMAGE :=
 RUN_SCRIPT :=
 TEST_RUNNER_BIN :=
 QEMU_BIN :=
