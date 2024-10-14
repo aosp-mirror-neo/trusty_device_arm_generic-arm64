@@ -21,9 +21,4 @@
     ns-interrupts-action = <1>; /* Managed exit is supported */
 
     boot-order = <0>;
-    gp-register-num = <0>; /* Place boot data into x0 */
-    boot-info {
-        compatible = "arm,ffa-manifest-boot-info";
-        ffa_manifest;
-    };
 };
