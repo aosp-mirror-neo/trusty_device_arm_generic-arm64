@@ -552,12 +552,9 @@ class Runner(object):
 
         if self.interactive:
             args = ["-serial", "mon:stdio"] + args
-        elif self.verbose:
+        else:
             # This still leaves stdin connected, but doesn't connect a monitor
             args = ["-serial", "stdio", "-monitor", "none"] + args
-        else:
-            # Silence debugging output
-            args = ["-serial", "null", "-monitor", "none"] + args
 
         # Create command channel which used to quit QEMU after case execution
         command_pipe = QEMUCommandPipe()
@@ -565,7 +562,10 @@ class Runner(object):
         cmd = [self.config.qemu] + args
 
         # pylint: disable=consider-using-with
-        qemu_proc = subprocess.Popen(cmd, cwd=self.config.atf)
+        qemu_proc = subprocess.Popen(cmd, cwd=self.config.atf,
+                                     stdin=self.stdin,
+                                     stdout=self.stdout,
+                                     stderr=self.stderr)
 
         command_pipe.open()
         self.msg_channel_wait_for_connection()
@@ -625,6 +625,7 @@ class Runner(object):
         finally:
             kill_timer.cancel()
             self.msg_channel_down()
+            self.session.has_error = has_error or result != 0
             unclean_exit = qemu_exit(command_pipe, qemu_proc,
                                      has_error=has_error,
                                      debug_on_error=self.debug_on_error)
