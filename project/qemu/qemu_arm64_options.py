@@ -147,10 +147,6 @@ class QemuArm64Options(object):
                     raise RunnerGenericError(
                         f"dtb_to_dts failed with {dtb_to_dts.returncode}")
 
-        firmware = f"{self.config.atf}/firmware.android.dts"
-        with open(firmware, "r", encoding="utf-8") as firmware_file:
-            dts += firmware_file.read()
-
         dts += self.initrd_dts()
 
         # Subprocess closes dtb, so we can't allow it to autodelete
