@@ -120,10 +120,13 @@ else
 # We have prebuilts, copy them into the build directory
 QEMU_BIN := $(QEMU_BUILD_BASE)/bin/qemu-system-$(QEMU_ARCH)
 
+# The qemu prebuilts now contain an Android.bp file.
+# We do not want it in the build directory because Soong reads it.
 $(QEMU_BUILD_BASE): $(QEMU_PREBUILTS)
 	@echo creating qemu output directory
 	@rm -rf $@
 	@cp -r $< $@
+	@rm -f $@/Android.bp
 
 # The binary is inside the build directory, so create
 # an empty dependency between them
@@ -170,13 +173,6 @@ $(ATF_OUT_DIR)/bl33.bin: BUILDDIR := $(BUILDDIR)
 $(ATF_OUT_DIR)/bl33.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
 	$(NOECHO)ln -rsf $< $@
-
-ATF_OUT_COPIED_FILES := \
-	$(ATF_OUT_DIR)/firmware.android.dts \
-
-$(ATF_OUT_COPIED_FILES): $(ATF_OUT_DIR)/% : $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/% $(ATF_OUT_DIR)
-	@echo copying $@
-	@cp $< $@
 
 $(ATF_OUT_DIR)/RPMB_DATA: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
@@ -272,12 +268,16 @@ ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES
 # ANDROID_OUT_BUILD_DIR preserving the directory structure relative to the
 # top-level ANDROID_OUT_SRC_DIR directory
 $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_SRC_DIR := $(ANDROID_OUT_SRC_DIR)
+$(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_IMAGE_DIR)
 $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_FILES := $(ANDROID_OUT_FILES)
-$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES)
+$(ANDROID_OUT_BUILD_DIR): LINUX_RAMDISK_IMAGE := $(LINUX_RAMDISK_IMAGE)
+$(ANDROID_OUT_BUILD_DIR): RAMDISK_CP := $(if $(LINUX_RAMDISK_IMAGE),cp,/bin/true)
+$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES) $(LINUX_RAMDISK_IMAGE)
 	@echo creating Android output directory
 	@rm -rf $@
 	@mkdir -p $@
 	@cd $(ANDROID_OUT_SRC_DIR) && cp -r --parents -t $@ $(ANDROID_OUT_FILES)
+	@$(RAMDISK_CP) $(LINUX_RAMDISK_IMAGE) $(ANDROID_OUT_IMAGE_DIR)/ramdisk.img
 
 EXTRA_BUILDDEPS += $(ANDROID_OUT_BUILD_DIR)
 
@@ -327,15 +327,20 @@ ifeq (true,$(call TOBOOL,$(PACKAGE_QEMU_TRUSTY)))
 # Files & directories to copy into QEMU package archive
 QEMU_PACKAGE_FILES := \
 	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) $(QEMU_CONFIG) $(RPMB_DEV) \
-	$(RUN_SCRIPT) $(STOP_SCRIPT) $(ANDROID_OUT_BUILD_DIR) \
+	$(RUN_SCRIPT) $(STOP_SCRIPT) \
 	$(QEMU_BIN) $(ATF_BIN) $(ATF_SYMLINKS) \
 	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) $(LINUX_IMAGE) \
+
+ifneq (true,$(call TOBOOL,$(PACKAGE_QEMU_WITHOUT_ANDROID)))
+# The Android prebuilts are pretty large and not all users need them
+QEMU_PACKAGE_FILES += $(ANDROID_OUT_BUILD_DIR)
+endif
 
 # Other files/directories that should be included in the package but which are
 # not make targets and therefore cannot be pre-requisites. The target that
 # creates these files must be in the QEMU_PACKAGE_FILES variable.
 QEMU_PACKAGE_EXTRA_FILES := \
-	$(LINUX_BUILD_DIR)/arch $(LINUX_BUILD_DIR)/scripts \
+	$(LINUX_BUILD_DIR)/scripts \
 	$(QEMU_BUILD_BASE) $(ATF_EXTRA_BINS) \
 
 QEMU_PACKAGE_ARCHIVE := $(BUILDDIR)/trusty_qemu_package.zip
@@ -380,6 +385,7 @@ ATF_SYMLINKS :=
 LINUX_ARCH :=
 LINUX_BUILD_DIR :=
 LINUX_IMAGE :=
+LINUX_RAMDISK_IMAGE :=
 RUN_SCRIPT :=
 TEST_RUNNER_BIN :=
 QEMU_BIN :=
