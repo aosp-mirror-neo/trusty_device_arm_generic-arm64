@@ -1,0 +1,5 @@
+dirgroup {
+    name: "trusty_dirgroup_trusty_device_arm_generic-arm64",
+    dirs: ["."],
+    visibility: ["//trusty/vendor/google/aosp/scripts"],
+}
