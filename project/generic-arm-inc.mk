@@ -86,6 +86,11 @@ KERNEL_LTO_ENABLED ?= true
 USER_CFI_ENABLED ?= true
 KERNEL_CFI_ENABLED ?= true
 
+#TODO(b/373398295): if clang is too old to support cross-language CFI, disable it
+ifneq ($(findstring clang-r498229b,$(CLANG_BINDIR)),)
+KERNEL_CFI_ENABLED := false
+endif
+
 # Storage should send error reports to the metrics service
 STORAGE_ENABLE_ERROR_REPORTING := true
 STORAGE_AIDL_ENABLED ?= true
@@ -181,6 +186,7 @@ TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
+	trusty/user/app/sample/hwcryptohal/server/app \
 	trusty/user/app/sample/hwwsk \
 	trusty/user/app/sample/secure_fb_mock_impl \
 	trusty/user/app/storage \
