@@ -6,6 +6,9 @@ kernel/drivers/virtio/virtio_mmio.ko
 kernel/drivers/net/virtio_net.ko
 kernel/drivers/virtio/virtio_pci.ko
 kernel/drivers/dma-buf/heaps/system_heap.ko
+kernel/drivers/firmware/arm_ffa/ffa-core.ko
+kernel/drivers/firmware/arm_ffa/ffa-module.ko
+trusty/trusty-ffa.ko
 trusty/trusty-smc.ko
 trusty/trusty-core.ko
 trusty/trusty-ipc.ko
