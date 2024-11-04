@@ -12,7 +12,7 @@ from qemu_error import RunnerGenericError
 logger = logging.getLogger(__name__)
 
 def _find_dtc():
-    for search_dir in ["out/host/linux-x86/bin", "prebuilts/misc/linux-x86/dtc", "bin"]:
+    for search_dir in ["out/host/linux-x86/bin", "prebuilts/misc/linux-x86/dtc", "bin", "linux-build/scripts/dtc"]:
         path = os.path.join(search_dir, "dtc")
         if os.path.exists(path):
             return path
@@ -146,10 +146,6 @@ class QemuArm64Options(object):
                 if dtb_to_dts.returncode != 0:
                     raise RunnerGenericError(
                         f"dtb_to_dts failed with {dtb_to_dts.returncode}")
-
-        firmware = f"{self.config.atf}/firmware.android.dts"
-        with open(firmware, "r", encoding="utf-8") as firmware_file:
-            dts += firmware_file.read()
 
         dts += self.initrd_dts()
 
