@@ -174,13 +174,6 @@ $(ATF_OUT_DIR)/bl33.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
 	$(NOECHO)ln -rsf $< $@
 
-ATF_OUT_COPIED_FILES := \
-	$(ATF_OUT_DIR)/firmware.android.dts \
-
-$(ATF_OUT_COPIED_FILES): $(ATF_OUT_DIR)/% : $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/% $(ATF_OUT_DIR)
-	@echo copying $@
-	@cp $< $@
-
 $(ATF_OUT_DIR)/RPMB_DATA: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
 	@echo Initialize rpmb device
@@ -334,15 +327,20 @@ ifeq (true,$(call TOBOOL,$(PACKAGE_QEMU_TRUSTY)))
 # Files & directories to copy into QEMU package archive
 QEMU_PACKAGE_FILES := \
 	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) $(QEMU_CONFIG) $(RPMB_DEV) \
-	$(RUN_SCRIPT) $(STOP_SCRIPT) $(ANDROID_OUT_BUILD_DIR) \
+	$(RUN_SCRIPT) $(STOP_SCRIPT) \
 	$(QEMU_BIN) $(ATF_BIN) $(ATF_SYMLINKS) \
 	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) $(LINUX_IMAGE) \
+
+ifneq (true,$(call TOBOOL,$(PACKAGE_QEMU_WITHOUT_ANDROID)))
+# The Android prebuilts are pretty large and not all users need them
+QEMU_PACKAGE_FILES += $(ANDROID_OUT_BUILD_DIR)
+endif
 
 # Other files/directories that should be included in the package but which are
 # not make targets and therefore cannot be pre-requisites. The target that
 # creates these files must be in the QEMU_PACKAGE_FILES variable.
 QEMU_PACKAGE_EXTRA_FILES := \
-	$(LINUX_BUILD_DIR)/arch $(LINUX_BUILD_DIR)/scripts \
+	$(LINUX_BUILD_DIR)/scripts \
 	$(QEMU_BUILD_BASE) $(ATF_EXTRA_BINS) \
 
 QEMU_PACKAGE_ARCHIVE := $(BUILDDIR)/trusty_qemu_package.zip
