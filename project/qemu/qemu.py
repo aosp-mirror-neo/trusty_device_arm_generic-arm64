@@ -27,31 +27,50 @@ logger = logging.getLogger(__name__)
 # ADB expects its first console on 5554, and control on 5555
 ADB_BASE_PORT = 5554
 
+_TRUSTY_PRODUCT_PATH = "target/product/trusty"
+_ANDROID_HOST_PATH = "host/linux-x86"
 
 def find_android_build_dir(android):
-    if os.path.exists(f"{android}/target/product/trusty"):
+    if os.path.exists(os.path.join(android, _TRUSTY_PRODUCT_PATH)):
         return android
-    if os.path.exists(f"{android}/out/target/product/trusty"):
-        return f"{android}/out"
+    if os.path.exists(os.path.join(android, "out", _TRUSTY_PRODUCT_PATH)):
+        return os.path.join(android, "out")
 
     print(f"{android} not an Android source or build directory")
     sys.exit(1)
+
+
+def find_android_image_dir(android):
+    return os.path.join(find_android_build_dir(android), _TRUSTY_PRODUCT_PATH)
+
+def find_adb_path(android):
+    return os.path.join(find_android_build_dir(android), _ANDROID_HOST_PATH, "bin/adb")
 
 
 class Config(object):
     """Stores a QEMU configuration for use with the runner
 
     Attributes:
-        android:          Path to a built Android tree or prebuilt.
-        linux:            Path to a built Linux kernel tree or prebuilt.
+        boot_android:     Boolean indicating to boot Android. Setting the
+                          "android" config option to a path containing a
+                          built Android tree or prebuilt will implicitly
+                          set this attribute to true
+        android_image_dir: Path to directory containing Android images.
+                           Can be set by providing a built Android tree
+                           or prebuilt with the "android" config option.
+                           Implies booting android.
+        linux:            Path to a built Linux kernel tree or prebuilt
+                          kernel image.
         linux_arch:       Architecture of Linux kernel.
         atf:              Path to the ATF build to use.
         qemu:             Path to the emulator to use.
         arch:             Architecture definition.
         rpmbd:            Path to the rpmb daemon to use.
+        adb:              Path to adb host tool.
         extra_qemu_flags: Extra flags to pass to QEMU.
-    Setting android or linux to None will result in a QEMU which starts
-    without those components.
+    Setting android or linux to a false value will result in a QEMU which starts
+    without those components. Only one of android and android_image_dir may be provided
+    in the config.
     """
 
     def __init__(self, config=None):
@@ -75,10 +94,20 @@ class Config(object):
                 return os.path.join(self.script_dir, config_value)
             return None
 
+        if config_dict.get("android") and config_dict.get("android_image_dir"):
+            raise ConfigError("Config may only have one of android and android_image_dir")
+
+        self.adb = abspath("adb")
         if android_path := abspath("android"):
-            self.android = find_android_build_dir(android_path)
+            logger.error("`android` config setting is deprecated. Please replace with "
+                         "`android_image_dir` and `adb` config entries.")
+            android_out = find_android_build_dir(android_path)
+            self.android_image_dir = os.path.join(android_out, _TRUSTY_PRODUCT_PATH)
+            if self.adb is None:
+                self.adb = os.path.join(android_out, _ANDROID_HOST_PATH, "bin/adb")
         else:
-            self.android = None
+            self.android_image_dir = abspath("android_image_dir")
+        self.boot_android = self.android_image_dir is not None
         self.linux = abspath("linux")
         self.linux_arch = config_dict.get("linux_arch")
         self.atf = abspath("atf")
@@ -94,7 +123,7 @@ class Config(object):
         if android_tests:
             if not self.linux:
                 raise ConfigError("Need Linux to run android tests")
-            if not self.android:
+            if not self.boot_android:
                 raise ConfigError("Need Android to run android tests")
 
         # For now, we can't run boot tests and android tests at the same time,
@@ -112,9 +141,15 @@ class Config(object):
             if interactive:
                 raise ConfigError("Cannot run boot tests interactively")
 
-        if self.android:
+        if self.boot_android:
             if not self.linux:
                 raise ConfigError("Cannot run Android without Linux")
+
+            if not self.android_image_dir:
+                raise ConfigError("Missing android_image_dir for Android")
+
+            if not self.adb:
+                raise ConfigError("Missing adb tool for Android")
 
 
 def alloc_ports():
@@ -238,12 +273,12 @@ class QEMUCommandPipe(object):
             cmp_command["arguments"] = arguments
         return self.qmp_command(cmp_command)
 
-    def monitor_command(self, monitor_command):
+    def monitor_command(self, monitor_command, log_return=True):
         """Send a monitor command and write result to stderr."""
 
         res = self.qmp_execute("human-monitor-command",
                                {"command-line": monitor_command})
-        if res and "return" in res:
+        if log_return and res and "return" in res:
             sys.stderr.write(res["return"])
 
 
@@ -264,7 +299,7 @@ def qemu_handle_error(command_pipe, debug_on_error):
 
 
 def qemu_exit(command_pipe, qemu_proc, has_error, debug_on_error):
-    """Ensures QEMU is terminated"""
+    """Ensures QEMU is terminated. Tries to write to drive image files."""
     unclean_exit = False
 
     if command_pipe:
@@ -329,6 +364,7 @@ class Runner(object):
 
     def __init__(self,
                  config,
+                 instance_dir: os.PathLike,
                  interactive=False,
                  verbose=False,
                  rpmb=True,
@@ -351,10 +387,10 @@ class Runner(object):
         self.msg_sock_dir = None
         self.debug_on_error = debug_on_error
         self.dump_stdout_on_error = False
-        self.qemu_arch_options = None
         self.default_timeout = 60 * 10  # 10 Minutes
         self.session: Optional[RunnerSession] = None
         self.state = RunnerState.OFF
+        self.instance_dir = instance_dir
 
         # If we're not verbose or interactive, squelch command output
         if verbose or self.interactive:
@@ -372,10 +408,11 @@ class Runner(object):
             self.stdin = subprocess.DEVNULL
 
         if self.config.arch in ("arm64", "arm"):
-            self.qemu_arch_options = qemu_options.QemuArm64Options(self.config)
+            self.qemu_arch_options = qemu_options.QemuArm64Options(
+                self.config, self.instance_dir)
         elif self.config.arch == "x86_64":
             # pylint: disable=no-member
-            self.qemu_arch_options = qemu_options.QemuX86_64Options(self.config)
+            self.qemu_arch_options = qemu_options.QemuX86_64Options(self.config) # type: ignore[attr-defined]
         else:
             raise ConfigError("Architecture unspecified or unsupported!")
 
@@ -492,7 +529,7 @@ class Runner(object):
         if self.msg_sock_conn:
             self.msg_sock_conn.close()
 
-    def boottest_run(self, boot_tests, timeout=(60 * 2)):
+    def boottest_run(self, boot_tests, timeout=60 * 2):
         """Run boot test cases"""
         args = self.session.args
         has_error = False
@@ -515,12 +552,9 @@ class Runner(object):
 
         if self.interactive:
             args = ["-serial", "mon:stdio"] + args
-        elif self.verbose:
+        else:
             # This still leaves stdin connected, but doesn't connect a monitor
             args = ["-serial", "stdio", "-monitor", "none"] + args
-        else:
-            # Silence debugging output
-            args = ["-serial", "null", "-monitor", "none"] + args
 
         # Create command channel which used to quit QEMU after case execution
         command_pipe = QEMUCommandPipe()
@@ -528,7 +562,10 @@ class Runner(object):
         cmd = [self.config.qemu] + args
 
         # pylint: disable=consider-using-with
-        qemu_proc = subprocess.Popen(cmd, cwd=self.config.atf)
+        qemu_proc = subprocess.Popen(cmd, cwd=self.config.atf,
+                                     stdin=self.stdin,
+                                     stdout=self.stdout,
+                                     stderr=self.stderr)
 
         command_pipe.open()
         self.msg_channel_wait_for_connection()
@@ -568,7 +605,8 @@ class Runner(object):
                             break
                         except IOError as e:
                             if e.errno != errno.EAGAIN:
-                                RunnerGenericError("Failed to print message")
+                                raise RunnerGenericError(
+                                    "Failed to print message") from e
                             select.select([], [sys.stdout], [])
 
                 # Please align message structure definition in testrunner.
@@ -587,6 +625,7 @@ class Runner(object):
         finally:
             kill_timer.cancel()
             self.msg_channel_down()
+            self.session.has_error = has_error or result != 0
             unclean_exit = qemu_exit(command_pipe, qemu_proc,
                                      has_error=has_error,
                                      debug_on_error=self.debug_on_error)
@@ -622,7 +661,7 @@ class Runner(object):
 
     def adb_bin(self):
         """Returns location of adb"""
-        return f"{self.config.android}/host/linux-x86/bin/adb"
+        return self.config.adb
 
     def adb(self,
             args,
@@ -784,7 +823,7 @@ class Runner(object):
         if self.config.linux:
             args += self.qemu_arch_options.linux_options()
 
-        if self.config.android:
+        if self.config.boot_android:
             args += self.qemu_arch_options.android_drives_args()
 
         # Append configured extra flags
@@ -823,7 +862,11 @@ class Runner(object):
 
         try:
             if self.use_rpmb:
+                self.qemu_arch_options.create_rpmb_data()
                 args += self.rpmb_up()
+
+            if self.config.boot_android:
+                self.qemu_arch_options.create_drives_data()
 
             if self.config.linux:
                 args += self.qemu_arch_options.gen_dtb(
@@ -897,7 +940,7 @@ class Runner(object):
             self.session.has_error = True
             raise
 
-    def shutdown(self):
+    def shutdown(self, factory_reset: bool, full_wipe: bool):
         """Shut down emulator after test cases have run
 
         The launch and shutdown methods store shared state in a session object.
@@ -911,7 +954,10 @@ class Runner(object):
 
         # Clean up generated device tree
         for temp_file in self.session.temp_files:
-            os.remove(temp_file)
+            try:
+                os.remove(temp_file)
+            except OSError:
+                pass
 
         if self.session.has_error:
             self.error_dump_output()
@@ -932,19 +978,32 @@ class Runner(object):
             # Disconnect ADB and wait for our port to be released by qemu
             self.adb_down(self.session.ports[1])
 
+        # Ideally, we'd clear on launch instead, but it doesn't know whether a
+        # clear should happen. We can't change launch to take factory_reset and
+        # full_wipe args because TrustyRebootCommand doesn't call launch, only
+        # shutdown. (The next test that runs after a reboot will re-launch when
+        # it notices the runner is down, but that test doesn't have the
+        # RebootMode info from the reboot.)
+        if factory_reset:
+            self.qemu_arch_options.delete_drives_data()
+        if full_wipe:
+            assert factory_reset, (
+                "Cannot perform a full wipe without factory resetting.")
+            self.qemu_arch_options.delete_rpmb_data()
+
         self.session = None
         self.state = RunnerState.OFF
 
         if unclean_exit:
             raise RunnerGenericError("QEMU did not exit cleanly")
 
-    def reboot(self, target_state):
-        self.shutdown()
+    def reboot(self, target_state, factory_reset: bool, full_wipe: bool):
+        self.shutdown(factory_reset, full_wipe)
 
         try:
             self.launch(target_state)
         except:
-            self.shutdown()
+            self.shutdown(factory_reset, full_wipe)
             raise
 
     def run(self, boot_tests: Optional[List] = None,
@@ -1006,4 +1065,4 @@ class Runner(object):
             if self.interactive and self.session:
                 # The user is responsible for quitting QEMU
                 self.session.qemu_proc.wait()
-            self.shutdown()
+            self.shutdown(factory_reset=True, full_wipe=False)
