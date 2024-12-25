@@ -21,5 +21,7 @@ GLOBAL_DEFINES += CACHE_LINE=64
 # Enable the FFA loop to test compatibility
 SPMC_EL :=
 LIB_SM_WITH_FFA_LOOP := true
+LINUX_ENABLE_FFA_TRANSPORT := true
+LINUX_ENABLE_SMC_TRANSPORT := true
 
 include project/qemu-inc.mk
