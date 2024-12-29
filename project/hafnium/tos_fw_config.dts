@@ -65,7 +65,7 @@
             debug_name = "trusty";
             load_address = <0x10000000>;
             vcpu_count = <4>;
-            mem_size = <0x08000000>;
+            mem_size = <0x20000000>;
         };
     };
 };
