@@ -2,7 +2,7 @@
 
 / {
     compatible = "arm,ffa-manifest-1.0";
-    ffa-version = <0x00010001>; /* 31:16 - Major, 15:0 - Minor */
+    ffa-version = <0x00010000>; /* 31:16 - Major, 15:0 - Minor */
     uuid = <0xf025ee40 0x4c30bca2 0x73a14c8c 0xf18a7dc5>;
     id = <1>;
     auxiliary-id = <0xaf>;
@@ -15,8 +15,7 @@
     entrypoint-offset = <0x00004000>;
     xlat-granule = <0>; /* 4KiB */
 
-    messaging-method = <7>; /* Direct and indirect messages */
-    notification-support; /* Support receipt of notifications. */
+    messaging-method = <1>; /* Direct message receive only */
 
     ns-interrupts-action = <1>; /* Managed exit is supported */
     /* Trusty reschedules the current thread on an IRQ but not a FIQ */
