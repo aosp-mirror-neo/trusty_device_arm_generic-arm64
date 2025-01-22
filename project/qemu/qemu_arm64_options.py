@@ -73,6 +73,9 @@ class QemuArm64Options(object):
     LINUX_ARGS = (
         "earlyprintk console=ttyAMA0,38400 keep_bootcon "
         "root=/dev/ram0 init=/init androidboot.hardware=qemu_trusty "
+        "androidboot.hypervisor.version=1.0.0 "
+        "androidboot.hypervisor.vm.supported=1 "
+        "androidboot.hypervisor.protected_vm.supported=1 "
         "trusty-log.log_ratelimit_interval=0 trusty-log.log_to_dmesg=always")
 
     def __init__(self, config, instance_dir):
