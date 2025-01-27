@@ -8,7 +8,12 @@
     auxiliary-id = <0xaf>;
     description = "Trusty";
 
-    execution-ctx-count = <4>;
+    /*
+     * On EL3-SPMC we need to use exactly PLATFORM_CORE_COUNT.
+     * Hafnium does not have that requirement, but we still
+     * try to use the same value as SMP_MAX_CPUS.
+     */
+    execution-ctx-count = <32>;
     exception-level = <2>; /* S-EL1 */
     execution-state = <0>; /* AARCH64 */
     load-address = <0x10000000>;
