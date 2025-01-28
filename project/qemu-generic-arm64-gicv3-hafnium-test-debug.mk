@@ -19,8 +19,7 @@ QEMU_TRUSTY_PROJECT := generic-arm64-gicv3-test-debug
 GLOBAL_DEFINES += CACHE_LINE=64
 
 HAFNIUM := 1
-LIB_SM_WITH_FFA_LOOP := true
-GENERIC_ARM64_DEBUG := FFA
+SPMC_EL := 2
 TIMER_ARM_GENERIC_SELECTED := CNTV
 
 include project/qemu-inc.mk
