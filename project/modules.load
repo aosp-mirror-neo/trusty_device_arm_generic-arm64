@@ -17,3 +17,6 @@ trusty/trusty-test.ko
 trusty/trusty-virtio.ko
 kernel/drivers/virtio/virtio_pci_modern_dev.ko
 kernel/drivers/virtio/virtio_pci_legacy_dev.ko
+kernel/drivers/virtio/virtio_msg.ko
+kernel/drivers/virtio/virtio_msg_ffa_transport.ko
+kernel/net/vmw_vsock/vmw_vsock_virtio_transport.ko
