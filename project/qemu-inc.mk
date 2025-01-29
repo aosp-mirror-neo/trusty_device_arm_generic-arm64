@@ -20,6 +20,26 @@ APPLOADER_ALLOW_NS_CONNECT := true
 # Include Secretkeeper TA
 SECRETKEEPER_ENABLED := true
 
+# All qemu-generic-arm64* builds default to SPMC_EL=3
+# while the arm32 builds use the SPD because both
+# Hafnium and EL3 SPMC only support AArch64.
+ifneq ($(filter generic-arm64%,$(QEMU_TRUSTY_PROJECT)),)
+SPMC_EL ?= 3
+endif
+
+ifneq ($(SPMC_EL),)
+LIB_SM_WITH_FFA_LOOP := true
+GENERIC_ARM64_DEBUG := FFA
+
+# Merge FIQ-IRQ to keep the FF-A implementation simpler
+ARM_MERGE_FIQ_IRQ := true
+
+# TF-A on qemu sets PLATFORM_CORE_COUNT=32 and requires that the
+# SP manifest specifies that exact number of execution contexts
+SMP_MAX_CPUS := 32
+SMP_CPU_CLUSTER_SHIFT := 4
+endif
+
 include project/$(QEMU_TRUSTY_PROJECT).mk
 
 # limit physical memory to 29 bits to make the mapping
@@ -163,6 +183,7 @@ ATF_EXTRA_BINS := \
 ATF_SYMLINKS := \
 	$(ATF_OUT_DIR)/bl32.bin \
 	$(ATF_OUT_DIR)/bl33.bin \
+	$(EXTRA_ATF_SYMLINKS) \
 
 $(ATF_OUT_DIR)/bl32.bin: BUILDDIR := $(BUILDDIR)
 $(ATF_OUT_DIR)/bl32.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
@@ -382,6 +403,7 @@ ATF_OUT_COPIED_FILES :=
 ATF_OUT_DIR :=
 ATF_RELATIVE_TO_BUILD_BASE :=
 ATF_SYMLINKS :=
+EXTRA_ATF_SYMLINKS :=
 LINUX_ARCH :=
 LINUX_BUILD_DIR :=
 LINUX_IMAGE :=

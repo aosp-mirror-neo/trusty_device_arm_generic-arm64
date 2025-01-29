@@ -56,10 +56,35 @@ ATF_MAKE_ARGS += QEMU_TB_FW_CONFIG_DTS=$(HAFNIUM_OUT_DIR)/tb_fw_config.dts
 HAFNIUM_DTBS := tb_fw_config.dtb tos_fw_config.dtb
 HAFNIUM_DTBS_SRCS := $(addprefix $(ATF_OUT_DIR)/fdts/, $(HAFNIUM_DTBS))
 $(HAFNIUM_DTBS_SRCS): $(ATF_BIN)
+
 HAFNIUM_DTBS_OUT := $(addprefix $(ATF_OUT_DIR)/, $(HAFNIUM_DTBS))
 $(HAFNIUM_DTBS_OUT): $(ATF_OUT_DIR)/%.dtb: $(ATF_OUT_DIR)/fdts/%.dtb
-	ln -sf $< $@
+	$(NOECHO)ln -rsf $< $@
+
 EXTRA_BUILDDEPS += $(HAFNIUM_DTBS_OUT)
+EXTRA_ATF_SYMLINKS += $(HAFNIUM_DTBS_OUT)
+else ifeq ($(SPMC_EL), 3)
+EL3SPMC_TOS_FW_CONFIG_DTS := \
+	$(TRUSTY_TOP)/trusty/device/arm/generic-arm64/project/el3spmc/tos_fw_config.dts
+
+EL3SPMC_TOS_FW_CONFIG_DTB_SRC := $(ATF_OUT_DIR)/fdts/tos_fw_config.dtb
+$(EL3SPMC_TOS_FW_CONFIG_DTB_SRC): $(ATF_BIN)
+
+EL3SPMC_TOS_FW_CONFIG_DTB_OUT := $(ATF_OUT_DIR)/tos_fw_config.dtb
+$(EL3SPMC_TOS_FW_CONFIG_DTB_OUT): $(EL3SPMC_TOS_FW_CONFIG_DTB_SRC)
+	$(NOECHO)ln -rsf $< $@
+
+EXTRA_BUILDDEPS += $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT)
+EXTRA_ATF_SYMLINKS += $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT)
+
+ATF_MAKE_ARGS := SPD=spmd
+ATF_MAKE_ARGS += SPMC_AT_EL3=1
+ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=0
+ATF_MAKE_ARGS += QEMU_TOS_FW_CONFIG_DTS=$(EL3SPMC_TOS_FW_CONFIG_DTS)
+# The el3_spmc build system needs something in BL32, otherwise it
+# builds the TSP as the BL32 payload. The variable is not used for anything,
+# so it can be a placeholder.
+ATF_MAKE_ARGS += BL32=/dev/null
 else
 ATF_MAKE_ARGS := SPD=trusty
 ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=0
@@ -96,3 +121,6 @@ ATF_WITH_TRUSTY_GENERIC_SERVICES:=
 ATF_TOOLCHAIN_PREFIX:=
 ATF_BIN:=
 ATF_MAKE_ARGS:=
+EL3SPMC_TOS_FW_CONFIG_DTS:=
+EL3SPMC_TOS_FW_CONFIG_DTB_SRC:=
+EL3SPMC_TOS_FW_CONFIG_DTB_OUT:=
