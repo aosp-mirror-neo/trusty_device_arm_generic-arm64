@@ -316,6 +316,7 @@ $(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
 	@echo generating $@
 	@echo '{ "linux": "$(LINUX_BUILD_DIR)",' > $@
 	@echo '  "linux_arch": "$(LINUX_ARCH)",' >> $@
+	@echo '  "initrd": "$(ANDROID_OUT_IMAGE_DIR)/ramdisk.img",' >> $@
 	@echo '  "atf": "$(ATF_OUT_DIR)", ' >> $@
 	@echo '  "qemu": "$(QEMU_BIN)", ' >> $@
 	@echo '  "extra_qemu_flags": $(EXTRA_QEMU_FLAGS), ' >> $@
