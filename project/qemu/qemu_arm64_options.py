@@ -109,6 +109,8 @@ class QemuArm64Options(object):
             "-chardev", f"socket,id=rpmb0,path={sock}"]
 
     def get_initrd_filename(self):
+        if self.config.initrd and pathlib.Path(self.config.initrd).is_file():
+            return self.config.initrd
         return self.config.android_image_dir + "/ramdisk.img"
 
     def initrd_dts(self):
