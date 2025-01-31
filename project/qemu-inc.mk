@@ -105,15 +105,9 @@ EXTRA_BUILDRULES += external/trusty/bootloader/test-runner/test-runner-inc.mk
 TEST_RUNNER_BIN := $(BUILDDIR)/test-runner/external/trusty/bootloader/test-runner/test-runner.bin
 
 ifeq (true,$(call TOBOOL,$(HAFNIUM)))
-HAFNIUM_OUT_DIR := $(BUILDDIR)/hafnium
-HAFNIUM_PREBUILTS := trusty/prebuilts/aosp/hafnium
-HAFNIUM_MANIFESTS := trusty/device/arm/generic-arm64/project/hafnium
-$(HAFNIUM_OUT_DIR)/%: $(HAFNIUM_PREBUILTS) $(HAFNIUM_MANIFESTS)
-	mkdir -p $(HAFNIUM_OUT_DIR)
-	cp -r $(HAFNIUM_PREBUILTS)/* $(HAFNIUM_OUT_DIR)
-	cp -r $(HAFNIUM_MANIFESTS)/* $(HAFNIUM_OUT_DIR)
-	ln -sf $(LK_BIN) $(HAFNIUM_OUT_DIR)/lk.bin
-BL32_BIN := $(HAFNIUM_OUT_DIR)/hafnium.bin
+HAFNIUM_PLATFORM := secure_qemu_aarch64
+include external/hafnium/rules.mk
+BL32_BIN := $(HAFNIUM_BIN)
 else
 BL32_BIN := $(LK_BIN)
 endif
@@ -405,6 +399,7 @@ ATF_OUT_DIR :=
 ATF_RELATIVE_TO_BUILD_BASE :=
 ATF_SYMLINKS :=
 EXTRA_ATF_SYMLINKS :=
+HAFNIUM_BIN :=
 LINUX_ARCH :=
 LINUX_BUILD_DIR :=
 LINUX_IMAGE :=
