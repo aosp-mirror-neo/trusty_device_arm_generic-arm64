@@ -2,13 +2,18 @@
 
 / {
     compatible = "arm,ffa-manifest-1.0";
-    ffa-version = <0x00010000>; /* 31:16 - Major, 15:0 - Minor */
+    ffa-version = <0x00010001>; /* 31:16 - Major, 15:0 - Minor */
     uuid = <0xf025ee40 0x4c30bca2 0x73a14c8c 0xf18a7dc5>;
     id = <1>;
     auxiliary-id = <0xaf>;
     description = "Trusty";
 
-    execution-ctx-count = <4>;
+    /*
+     * On EL3-SPMC we need to use exactly PLATFORM_CORE_COUNT.
+     * Hafnium does not have that requirement, but we still
+     * try to use the same value as SMP_MAX_CPUS.
+     */
+    execution-ctx-count = <32>;
     exception-level = <2>; /* S-EL1 */
     execution-state = <0>; /* AARCH64 */
     load-address = <0x10000000>;

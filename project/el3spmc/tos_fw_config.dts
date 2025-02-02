@@ -1,0 +1,24 @@
+/*
+ * Copyright (c) 2022, Arm Limited. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/dts-v1/;
+
+#define EL1		(0x0)
+#define S_EL0		(0x1)
+#define S_EL1		(0x2)
+
+/ {
+	compatible = "arm,ffa-manifest-1.0";
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	ffa-version = <0x00010001>; /* 31:16 - Major, 15:0 - Minor */
+	id = <0x8001>;
+	uuid = <0xf025ee40 0x4c30bca2 0x73a14c8c 0xf18a7dc5>;
+	messaging-method = <1>; /* Direct Messaging Only */
+	exception-level = <S_EL1>;
+	execution-state = <0>;
+	execution-ctx-count = <32>; /* Must match PLATFORM_CORE_COUNT */
+};
