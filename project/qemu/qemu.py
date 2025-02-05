@@ -62,6 +62,8 @@ class Config(object):
         linux:            Path to a built Linux kernel tree or prebuilt
                           kernel image.
         linux_arch:       Architecture of Linux kernel.
+        initrd:           Path to a built ramdisk.img or other initrd,
+                          if different from the one in the Android images.
         atf:              Path to the ATF build to use.
         qemu:             Path to the emulator to use.
         arch:             Architecture definition.
@@ -110,6 +112,7 @@ class Config(object):
         self.boot_android = self.android_image_dir is not None
         self.linux = abspath("linux")
         self.linux_arch = config_dict.get("linux_arch")
+        self.initrd = abspath("initrd")
         self.atf = abspath("atf")
         self.qemu = abspath("qemu", "qemu-system-aarch64")
         self.rpmbd = abspath("rpmbd")

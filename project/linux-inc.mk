@@ -22,14 +22,14 @@
 
 # This Makefile will build the Linux kernel with our configuration.
 
-LINUX_VERSION := 6.6
+LINUX_PREBUILTS_VERSION := 6.12
+LINUX_PREBUILTS_IMAGE := \
+	kernel/prebuilts/${LINUX_PREBUILTS_VERSION}/${LINUX_ARCH}/kernel-${LINUX_PREBUILTS_VERSION}
 
 LINUX_BUILD_DIR := $(abspath $(BUILDDIR)/linux-build)
 ifndef LINUX_ARCH
 	$(error LINUX_ARCH must be specified)
 endif
-
-LINUX_PREBUILTS_IMAGE := kernel/prebuilts/${LINUX_VERSION}/${LINUX_ARCH}/kernel-${LINUX_VERSION}
 
 LINUX_IMAGE := $(LINUX_BUILD_DIR)/arch/$(LINUX_ARCH)/boot/Image
 LINUX_RAMDISK_IMAGE :=
