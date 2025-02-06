@@ -45,27 +45,71 @@ ATF_BIN := $(ATF_OUT_DIR)/bl31.bin
 ATF_WITH_TRUSTY_GENERIC_SERVICES ?= false
 
 ifeq (true,$(call TOBOOL,$(HAFNIUM)))
+HAFNIUM_PROJECT_DIR := \
+       $(TRUSTY_TOP)/trusty/device/arm/generic-arm64/project/hafnium
+
+# We need to copy sp_layout.json and trusty.dts to the same directory as lk.bin
+# because TF-A parses sp_layout.json and reads the other files from the same
+# directory.
+LK_BIN_DIR := $(dir $(LK_BIN))
+HAFNIUM_SP_LAYOUT_FILES := \
+	$(LK_BIN_DIR)/sp_layout.json \
+	$(LK_BIN_DIR)/trusty.dts \
+
+$(HAFNIUM_SP_LAYOUT_FILES): $(LK_BIN_DIR)/%: $(HAFNIUM_PROJECT_DIR)/%
+	@$(MKDIR)
+	@cp $< $@
+
+# Add explicit dependencies for the layout files
+# because the TF-A build system needs them
+$(ATF_BIN): $(HAFNIUM_SP_LAYOUT_FILES)
+
 ATF_MAKE_ARGS := SPD=spmd
 ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=1
-ATF_MAKE_ARGS += BL32=$(BL32_BIN)
-ATF_MAKE_ARGS += BL33=$(TEST_RUNNER_BIN)
-ATF_MAKE_ARGS += SP_LAYOUT_FILE=$(HAFNIUM_OUT_DIR)/sp_layout.json
-ATF_MAKE_ARGS += QEMU_TOS_FW_CONFIG_DTS=$(HAFNIUM_OUT_DIR)/tos_fw_config.dts
-ATF_MAKE_ARGS += QEMU_TB_FW_CONFIG_DTS=$(HAFNIUM_OUT_DIR)/tb_fw_config.dts
-# Symlink the Hafnium DTBs to where ATF will look for them.
+ATF_MAKE_ARGS += SP_LAYOUT_FILE=$(LK_BIN_DIR)/sp_layout.json
+ATF_MAKE_ARGS += QEMU_TOS_FW_CONFIG_DTS=$(HAFNIUM_PROJECT_DIR)/tos_fw_config.dts
+ATF_MAKE_ARGS += QEMU_TB_FW_CONFIG_DTS=$(HAFNIUM_PROJECT_DIR)/tb_fw_config.dts
+
+# Symlink the Hafnium DTBs to where qemu will look for them.
 HAFNIUM_DTBS := tb_fw_config.dtb tos_fw_config.dtb
 HAFNIUM_DTBS_SRCS := $(addprefix $(ATF_OUT_DIR)/fdts/, $(HAFNIUM_DTBS))
 $(HAFNIUM_DTBS_SRCS): $(ATF_BIN)
+
 HAFNIUM_DTBS_OUT := $(addprefix $(ATF_OUT_DIR)/, $(HAFNIUM_DTBS))
 $(HAFNIUM_DTBS_OUT): $(ATF_OUT_DIR)/%.dtb: $(ATF_OUT_DIR)/fdts/%.dtb
-	ln -sf $< $@
+	$(NOECHO)ln -rsf $< $@
+
 EXTRA_BUILDDEPS += $(HAFNIUM_DTBS_OUT)
+EXTRA_ATF_SYMLINKS += $(HAFNIUM_DTBS_OUT)
+else ifeq ($(SPMC_EL), 3)
+EL3SPMC_TOS_FW_CONFIG_DTS := \
+	$(TRUSTY_TOP)/trusty/device/arm/generic-arm64/project/el3spmc/tos_fw_config.dts
+
+EL3SPMC_TOS_FW_CONFIG_DTB_SRC := $(ATF_OUT_DIR)/fdts/tos_fw_config.dtb
+$(EL3SPMC_TOS_FW_CONFIG_DTB_SRC): $(ATF_BIN)
+
+EL3SPMC_TOS_FW_CONFIG_DTB_OUT := $(ATF_OUT_DIR)/tos_fw_config.dtb
+$(EL3SPMC_TOS_FW_CONFIG_DTB_OUT): $(EL3SPMC_TOS_FW_CONFIG_DTB_SRC)
+	$(NOECHO)ln -rsf $< $@
+
+EXTRA_BUILDDEPS += $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT)
+EXTRA_ATF_SYMLINKS += $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT)
+
+ATF_MAKE_ARGS := SPD=spmd
+ATF_MAKE_ARGS += SPMC_AT_EL3=1
+ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=0
+ATF_MAKE_ARGS += QEMU_TOS_FW_CONFIG_DTS=$(EL3SPMC_TOS_FW_CONFIG_DTS)
+# The el3_spmc build system needs something in BL32, otherwise it
+# builds the TSP as the BL32 payload. The variable is not used for anything,
+# so it can be a placeholder.
+ATF_MAKE_ARGS += BL32=/dev/null
 else
 ATF_MAKE_ARGS := SPD=trusty
 ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=0
 endif
 ATF_MAKE_ARGS += CC=$(CLANG_BINDIR)/clang
 ATF_MAKE_ARGS += DTC=$(TRUSTY_TOP)/prebuilts/misc/linux-x86/dtc/dtc
+ATF_MAKE_ARGS += PYTHON=$(PY3)
 ATF_MAKE_ARGS += CROSS_COMPILE=$(ATF_TOOLCHAIN_PREFIX)
 ATF_MAKE_ARGS += PLAT=$(ATF_PLAT)
 ATF_MAKE_ARGS += DEBUG=$(ATF_DEBUG)
@@ -96,3 +140,12 @@ ATF_WITH_TRUSTY_GENERIC_SERVICES:=
 ATF_TOOLCHAIN_PREFIX:=
 ATF_BIN:=
 ATF_MAKE_ARGS:=
+EL3SPMC_TOS_FW_CONFIG_DTS:=
+EL3SPMC_TOS_FW_CONFIG_DTB_SRC:=
+EL3SPMC_TOS_FW_CONFIG_DTB_OUT:=
+LK_BIN_DIR :=
+HAFNIUM_DTBS :=
+HAFNIUM_DTBS_SRCS :=
+HAFNIUM_DTBS_OUT :=
+HAFNIUM_PROJECT_DIR :=
+HAFNIUM_SP_LAYOUT_FILES :=

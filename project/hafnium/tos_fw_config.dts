@@ -64,7 +64,7 @@
             is_ffa_partition;
             debug_name = "trusty";
             load_address = <0x10000000>;
-            vcpu_count = <4>;
+            vcpu_count = <32>;
             mem_size = <0x20000000>;
         };
     };

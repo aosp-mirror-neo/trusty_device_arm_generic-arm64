@@ -73,6 +73,9 @@ class QemuArm64Options(object):
     LINUX_ARGS = (
         "earlyprintk console=ttyAMA0,38400 keep_bootcon "
         "root=/dev/ram0 init=/init androidboot.hardware=qemu_trusty "
+        "androidboot.hypervisor.version=1.0.0 "
+        "androidboot.hypervisor.vm.supported=1 "
+        "androidboot.hypervisor.protected_vm.supported=1 "
         "trusty-log.log_ratelimit_interval=0 trusty-log.log_to_dmesg=always")
 
     def __init__(self, config, instance_dir):
@@ -106,6 +109,8 @@ class QemuArm64Options(object):
             "-chardev", f"socket,id=rpmb0,path={sock}"]
 
     def get_initrd_filename(self):
+        if self.config.initrd and pathlib.Path(self.config.initrd).is_file():
+            return self.config.initrd
         return self.config.android_image_dir + "/ramdisk.img"
 
     def initrd_dts(self):
