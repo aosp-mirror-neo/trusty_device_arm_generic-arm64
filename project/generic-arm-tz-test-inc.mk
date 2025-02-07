@@ -23,7 +23,7 @@ UBSAN_ENABLED ?= true
 
 RELEASE_BUILD ?= false
 
-include project/generic-arm-inc.mk
+include project/generic-arm-tz-inc.mk
 
 include frameworks/native/libs/binder/trusty/usertests-inc.mk
 include trusty/kernel/kerneltests-inc.mk

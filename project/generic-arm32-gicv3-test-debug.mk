@@ -17,4 +17,4 @@ KERNEL_32BIT := true
 DEBUG := 2
 GIC_VERSION := 3
 
-include project/generic-arm-test-inc.mk
+include project/generic-arm-tz-test-inc.mk
