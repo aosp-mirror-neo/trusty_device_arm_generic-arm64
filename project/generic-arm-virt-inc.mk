@@ -33,9 +33,5 @@ SMP_MAX_CPUS := 1
 GLOBAL_DEFINES += ARM_GIC_SELECTED_IRQ_GROUP=GRP1NS
 TIMER_ARM_GENERIC_SELECTED ?= CNTV
 
-# TODO(b/383196737): Temporarily disable CFI due to bug in Rust 1.80 toolchain.
-# Re-enable once we have a prebuilt Rust 1.81+ toolchain with Trusty support.
-KERNEL_CFI_ENABLED := false
-
 # Enable MMIO guard
 MMIO_GUARD_ENABLED ?= true
