@@ -16,4 +16,4 @@
 KERNEL_32BIT := false
 DEBUG := 1
 
-include project/generic-arm-inc.mk
+include project/generic-arm-tz-inc.mk
