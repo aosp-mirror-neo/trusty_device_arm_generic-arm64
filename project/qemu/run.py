@@ -43,6 +43,7 @@ def _check_args(args):
     """Validate arguments passed to run_test."""
     assert args.headless, args
     assert not args.linux, args
+    assert not args.initrd, args
     assert not args.atf, args
     assert not args.qemu, args
     assert not args.arch, args
@@ -105,6 +106,7 @@ def build_argparser():
     argument_parser.add_argument("--shell-command", action="append")
     argument_parser.add_argument("--android")
     argument_parser.add_argument("--linux")
+    argument_parser.add_argument("--initrd")
     argument_parser.add_argument("--instance-dir", type=str,
                                  default="/tmp/trusty-qemu-generic-arm64")
     argument_parser.add_argument("--atf")
@@ -128,6 +130,8 @@ def main():
         config.boot_android = True
     if args.linux:
         config.linux = args.linux
+    if args.initrd:
+        config.initrd = args.initrd
     if args.atf:
         config.atf = args.atf
     if args.qemu:
