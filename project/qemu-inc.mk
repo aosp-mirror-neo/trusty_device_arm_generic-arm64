@@ -163,6 +163,7 @@ endif
 RUN_SCRIPT := $(BUILDDIR)/run
 STOP_SCRIPT := $(BUILDDIR)/stop
 ALLOC_ADB_PORTS_PY := $(BUILDDIR)/alloc_adb_ports.py
+HOST_COMMANDS_OUT_DIR := $(BUILDDIR)/host_commands
 QEMU_CONFIG := $(BUILDDIR)/config.json
 QEMU_PY := $(BUILDDIR)/qemu.py
 QEMU_ERROR_PY := $(BUILDDIR)/qemu_error.py
@@ -228,23 +229,30 @@ $(ATF_OUT_DIR)/metadata.img:
 
 QEMU_SCRIPTS := \
 	$(ALLOC_ADB_PORTS_PY) \
+	$(HOST_COMMANDS_OUT_DIR) \
 	$(QEMU_PY) \
 	$(QEMU_ERROR_PY) \
 	$(QEMU_OPTIONS_PY) \
 	$(QEMU_LLDB_SUPPORT_PY) \
 	$(QEMU_LLDBINIT) \
-	$(RUN_PY)
+	$(RUN_PY) \
 
 $(QEMU_SCRIPTS): .PHONY
 EXTRA_BUILDDEPS += $(QEMU_SCRIPTS)
 
 # Copied so that the resulting build tree contains all files needed to run
-$(QEMU_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/qemu.py
+$(ALLOC_ADB_PORTS_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/alloc_adb_ports.py
 	@echo copying $@
 	@cp $< $@
 
 # Copied so that the resulting build tree contains all files needed to run
-$(ALLOC_ADB_PORTS_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/alloc_adb_ports.py
+$(HOST_COMMANDS_OUT_DIR): $(PROJECT_QEMU_INC_LOCAL_DIR)/host_commands
+	@echo copying $@
+	@rm -rf $@
+	@cp -a $< $@
+
+# Copied so that the resulting build tree contains all files needed to run
+$(QEMU_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/qemu.py
 	@echo copying $@
 	@cp $< $@
 
