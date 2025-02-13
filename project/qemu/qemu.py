@@ -339,6 +339,7 @@ class RunnerState(enum.Enum):
     OFF = 0
     BOOTLOADER = 1
     ANDROID = 2
+    ERROR = 3
 
 
 class Runner(object):
@@ -740,7 +741,10 @@ class Runner(object):
         except subprocess.TimeoutExpired:
             if on_timeout:
                 on_timeout()
-
+        finally:
+            # Make sure we don't return with adp_proc still running.
+            # Since adb_proc.kill() is a NOP if adb_proc.wait() completed we
+            # can call this unconditionally.
             try:
                 adb_proc.kill()
             except OSError:
@@ -902,6 +906,11 @@ class Runner(object):
         assert self.state == RunnerState.OFF
         assert target_state in [RunnerState.BOOTLOADER,
                                 RunnerState.ANDROID], target_state
+
+        # Set self.state to RunnerState.ERROR in case we get an exception
+        # before self.state is set to target_state. This tells shutdown that
+        # cleanup might be needed.
+        self.state = RunnerState.ERROR
 
         self.session = RunnerSession()
         args = self.universal_args()
