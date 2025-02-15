@@ -76,9 +76,16 @@ class QemuArm64Options(object):
 
     MACHINE = "virt,secure=on,virtualization=on"
 
+    # -no-reboot is to avoid the logs of trusty starting again when the system
+    # exists uncleanly, e.g., due to a boot or test failure.
     BASIC_ARGS = [
-        "-nographic", "-cpu", "max,sve=off,pauth=off", "-smp", "4", "-m", "1024", "-d",
-        "unimp", "-semihosting-config", "enable,target=native", "-no-acpi",
+        "-nographic", "-no-reboot",
+        "-cpu", "max,sve=off,pauth=off",
+        "-smp", "4",
+        "-m", "1024",
+        "-d", "unimp",
+        "-semihosting-config", "enable=on,target=native",
+        "-machine", "acpi=off",
     ]
 
     LINUX_ARGS = (
