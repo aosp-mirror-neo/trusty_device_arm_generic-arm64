@@ -189,10 +189,19 @@ $(ATF_OUT_DIR)/bl33.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
 	$(NOECHO)ln -rsf $< $@
 
+ATF_GENERATED_FILES := \
+	$(ATF_OUT_DIR)/RPMB_DATA \
+	$(ATF_OUT_DIR)/metadata.img \
+
 $(ATF_OUT_DIR)/RPMB_DATA: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
 	@echo Initialize rpmb device
 	$< --dev $(ATF_OUT_DIR)/RPMB_DATA --init --size 2048
+
+$(ATF_OUT_DIR)/metadata.img:
+	@echo Create metadata.img
+	dd if=/dev/zero of=$@ bs=1024k count=16
+	mkfs.ext4 -F $@ 16m
 
 QEMU_SCRIPTS := \
 	$(QEMU_PY) \
@@ -306,7 +315,7 @@ $(QEMU_CONFIG): LINUX_ARCH := $(LINUX_ARCH)
 $(QEMU_CONFIG): ANDROID_OUT_IMAGE_DIR := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_IMAGE_DIR))
 $(QEMU_CONFIG): ANDROID_OUT_ADB_PATH := $(subst $(BUILDDIR)/,,$(ANDROID_OUT_ADB_PATH))
 $(QEMU_CONFIG): RPMB_DEV := $(subst $(BUILDDIR)/,,$(RPMB_DEV))
-$(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_OUT_DIR)/RPMB_DATA
+$(QEMU_CONFIG): $(ATF_OUT_COPIED_FILES) $(ATF_SYMLINKS) $(ATF_GENERATED_FILES)
 	@echo generating $@
 	@echo '{ "linux": "$(LINUX_BUILD_DIR)",' > $@
 	@echo '  "linux_arch": "$(LINUX_ARCH)",' >> $@
@@ -345,7 +354,9 @@ QEMU_PACKAGE_FILES := \
 	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) $(QEMU_CONFIG) $(RPMB_DEV) \
 	$(RUN_SCRIPT) $(STOP_SCRIPT) \
 	$(QEMU_BIN) $(ATF_BIN) $(ATF_SYMLINKS) \
-	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) $(LINUX_IMAGE) \
+	$(ATF_GENERATED_FILES) \
+	$(ATF_OUT_COPIED_FILES) \
+	$(LINUX_IMAGE) \
 
 ifneq (true,$(call TOBOOL,$(PACKAGE_QEMU_WITHOUT_ANDROID)))
 # The Android prebuilts are pretty large and not all users need them
@@ -374,7 +385,8 @@ QEMU_PACKAGE_FILES := \
 	$(OUTBIN) $(QEMU_SCRIPTS) $(PY3_CMD) \
 	$(STOP_SCRIPT) \
 	$(ATF_BIN) $(ATF_SYMLINKS) $(TEST_RUNNER_BIN) \
-	$(ATF_OUT_DIR)/RPMB_DATA $(ATF_OUT_COPIED_FILES) \
+	$(ATF_GENERATED_FILES) \
+	$(ATF_OUT_COPIED_FILES) \
 
 # Other files/directories that should be included in the package but which are
 # not make targets and therefore cannot be pre-requisites. The target that

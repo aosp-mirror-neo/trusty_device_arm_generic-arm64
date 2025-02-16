@@ -19,27 +19,38 @@ def _find_dtc():
     return None
 
 
-class QemuDrive():
-    def __init__(self, name: str, index: int, read_only: bool = True):
+class QemuDrive:
+    def __init__(
+        self,
+        name: str,
+        index: int,
+        dir_name: str,
+        read_only: bool = True,
+        ext: str = ".img",
+    ):
         self.name = name
         self.index = index
         self.read_only = read_only
+        self.ext = ext
+        self.img_path = self.path(pathlib.Path(dir_name))
+        if not os.path.exists(self.img_path):
+            raise RunnerGenericError(
+                f"image cannot be found at {self.img_path}"
+            )
 
     def index_letter(self):
         return chr(ord('a') + self.index)
 
     def path(self, directory: os.PathLike):
-        return f"{directory}/{self.name}.img"
+        return os.path.join(directory,f"{self.name}{self.ext}")
 
-    def ensure_image_exists(self, image_dir: os.PathLike,
-                            instance_dir: os.PathLike):
+    def ensure_image_exists(self, instance_dir: os.PathLike):
         if self.read_only:
             return
 
         path = self.path(instance_dir)
         if not os.path.exists(path):
-            snapshot_path = self.path(image_dir)
-            shutil.copy(snapshot_path, path)
+            shutil.copy(self.img_path, path)
 
     def delete_image_changes(self, instance_dir: os.PathLike):
         if self.read_only:
@@ -170,16 +181,19 @@ class QemuArm64Options(object):
 
     def drives(self) -> list[QemuDrive]:
         return [
-            QemuDrive("userdata", 2, read_only=False),
-            QemuDrive("vendor", 1),
-            QemuDrive("system", 0)
+            QemuDrive("metadata", 3, self.config.atf, read_only=False),
+            QemuDrive(
+                "userdata", 2, self.config.android_image_dir, read_only=False
+            ),
+            QemuDrive("vendor", 1, self.config.android_image_dir),
+            QemuDrive("system", 0, self.config.android_image_dir),
         ]
 
     def create_drives_data(self):
         """If drives images don't exist, create some from their snapshots."""
         os.makedirs(self.instance_dir, exist_ok=True)
         for drive in self.drives():
-            drive.ensure_image_exists(self.config.android_image_dir, self.instance_dir)
+            drive.ensure_image_exists(self.instance_dir)
 
     def delete_drives_data(self):
         for drive in self.drives():
