@@ -20,13 +20,20 @@ WITH_FAKE_HWRNG ?= true
 WITH_FAKE_HWKEY ?= true
 WITH_FAKE_KEYBOX ?= true
 
+# Derive RPMB key using HKDF
+WITH_HKDF_RPMB_KEY ?= true
+
 STORAGE_ENABLE_ERROR_REPORTING ?= true
 STORAGE_AIDL_ENABLED ?= true
+TRUSTY_VM_INCLUDE_SECURE_STORAGE_HAL ?= true
+
+KEYMINT_TRUSTY_VM ?= nonsecure
 
 include project/vm-arm64-security-inc.mk
 
 TRUSTY_BUILTIN_USER_TASKS += \
 	trusty/user/app/storage \
+	trusty/user/base/app/metrics \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
