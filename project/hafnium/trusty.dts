@@ -2,7 +2,7 @@
 
 / {
     compatible = "arm,ffa-manifest-1.0";
-    ffa-version = <0x00010001>; /* 31:16 - Major, 15:0 - Minor */
+    ffa-version = <0x00010002>; /* 31:16 - Major, 15:0 - Minor */
     uuid = <0xf025ee40 0x4c30bca2 0x73a14c8c 0xf18a7dc5>;
     id = <1>;
     auxiliary-id = <0xaf>;
