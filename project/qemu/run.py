@@ -48,6 +48,7 @@ def _check_args(args):
     assert not args.qemu, args
     assert not args.arch, args
     assert not args.debug, args
+    assert not args.extra_linux_args, args
     assert not args.extra_qemu_flags, args
     assert not args.disable_rpmb, args
 
@@ -114,6 +115,7 @@ def build_argparser():
     argument_parser.add_argument("--arch")
     argument_parser.add_argument("--disable-rpmb", action="store_true")
     argument_parser.add_argument("--timeout", type=int)
+    argument_parser.add_argument('-n', '--extra-linux-args', nargs='+', default=[])
     argument_parser.add_argument("extra_qemu_flags", nargs="*")
     return argument_parser
 
@@ -138,6 +140,8 @@ def main():
         config.qemu = args.qemu
     if args.arch:
         config.arch = args.arch
+    if args.extra_linux_args:
+        config.extra_linux_args = args.extra_linux_args
     if args.extra_qemu_flags:
         config.extra_qemu_flags += args.extra_qemu_flags
 
