@@ -18,12 +18,13 @@ include project/vm-arm-virt-inc.mk
 #
 # overwrite list of TAs
 #
+TRUSTY_VM_INCLUDE_KEYMINT ?= true
+TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 
 # compiled from source
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/gatekeeper \
 	trusty/user/app/keymint/app \
-	trusty/user/app/storage \
 	trusty/user/base/app/device_tree \
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))

@@ -17,6 +17,7 @@
 DEBUG ?= 2
 UBSAN_ENABLED ?= true
 RELEASE_BUILD ?= false
+LOG_LEVEL_KERNEL_RUST ?= 4
 
 # If SYMTAB_ENABLED is true: do not strip symbols from the resulting app binary
 SYMTAB_ENABLED ?= true
