@@ -198,10 +198,19 @@ $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
 	@echo Initialize rpmb device
 	$< --dev $(ATF_OUT_DIR)/RPMB_DATA --init --size 2048
 
+ifneq (,$(ANDROID_BUILD_TOP))
+# We are building Trusty inside an Android environment,
+# which means we can use a fresh Android build instead of prebuilts
+ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
+else
+ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
+endif
+
+MKE2FS ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin/mke2fs
+$(ATF_OUT_DIR)/metadata.img: MKE2FS := $(MKE2FS)
 $(ATF_OUT_DIR)/metadata.img:
 	@echo Create metadata.img
-	dd if=/dev/zero of=$@ bs=1024k count=16
-	mkfs.ext4 -F $@ 16m
+	MKE2FS_CONFIG= $(MKE2FS) -t ext4 -F $@ -O has_journal,extent,huge_file,dir_nlink,extra_isize,uninit_bg 16m
 
 QEMU_SCRIPTS := \
 	$(QEMU_PY) \
@@ -260,6 +269,7 @@ EXTRA_BUILDDEPS += $(PY3_CMD)
 # List of files we need from Android
 ANDROID_OUT_FILES := \
 	out/host/linux-x86/bin/adb \
+	out/host/linux-x86/bin/mke2fs \
 	out/target/product/trusty/ramdisk.img \
 	out/target/product/trusty/system.img \
 	out/target/product/trusty/vendor.img \
@@ -277,14 +287,6 @@ ANDROID_OUT_BUILD_DIR := $(BUILDDIR)/aosp/android
 
 ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_BUILD_DIR)/out/target/product/trusty
 ANDROID_OUT_ADB_PATH := $(ANDROID_OUT_BUILD_DIR)/out/host/linux-x86/bin/adb
-
-ifneq (,$(ANDROID_BUILD_TOP))
-# We are building Trusty inside an Android environment,
-# which means we can use a fresh Android build instead of prebuilts
-ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
-else
-ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
-endif
 
 ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
 
