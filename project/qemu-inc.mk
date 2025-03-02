@@ -15,6 +15,10 @@
 
 PROJECT_QEMU_INC_LOCAL_DIR := $(GET_LOCAL_DIR)
 
+ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
+PACKAGE_TRUSTY_IMAGES := true
+endif
+
 APPLOADER_ALLOW_NS_CONNECT := true
 
 # Include Secretkeeper TA
@@ -123,7 +127,8 @@ include project/qemu-atf-inc.mk
 # Try using the qemu from the prebuilts
 QEMU_BUILD_BASE := $(abspath $(BUILDDIR)/qemu-build)
 QEMU_ARCH := aarch64
-QEMU_PREBUILTS := $(wildcard prebuilts/android-emulator/trusty-x86_64)
+QEMU_PREBUILTS_DIR ?= prebuilts/android-emulator/trusty-x86_64
+QEMU_PREBUILTS := $(wildcard $(QEMU_PREBUILTS_DIR))
 
 ifeq (,$(QEMU_PREBUILTS))
 # No prebuilts, build qemu from source
@@ -150,8 +155,10 @@ $(QEMU_BIN): $(QEMU_BUILD_BASE)
 EXTRA_BUILDDEPS += $(QEMU_BUILD_BASE) $(QEMU_BIN)
 endif
 
+ifneq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
 LINUX_ARCH ?= arm64
 include project/linux-inc.mk
+endif
 
 RUN_SCRIPT := $(BUILDDIR)/run
 STOP_SCRIPT := $(BUILDDIR)/stop
@@ -198,10 +205,25 @@ $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
 	@echo Initialize rpmb device
 	$< --dev $(ATF_OUT_DIR)/RPMB_DATA --init --size 2048
 
+ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
+ANDROID_OUT_SRC_DIR :=
+ANDROID_OUT_SRC_FILES :=
+else
+ifneq (,$(ANDROID_BUILD_TOP))
+# We are building Trusty inside an Android environment,
+# which means we can use a fresh Android build instead of prebuilts
+ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
+else
+ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
+endif
+ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
+endif
+
+MKE2FS ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin/mke2fs
+$(ATF_OUT_DIR)/metadata.img: MKE2FS := $(MKE2FS)
 $(ATF_OUT_DIR)/metadata.img:
 	@echo Create metadata.img
-	dd if=/dev/zero of=$@ bs=1024k count=16
-	mkfs.ext4 -F $@ 16m
+	MKE2FS_CONFIG= $(MKE2FS) -t ext4 -F $@ -O has_journal,extent,huge_file,dir_nlink,extra_isize,uninit_bg 16m
 
 QEMU_SCRIPTS := \
 	$(QEMU_PY) \
@@ -258,14 +280,20 @@ $(PY3_CMD): $(BUILDTOOLS_BINDIR)/py3-cmd
 EXTRA_BUILDDEPS += $(PY3_CMD)
 
 # List of files we need from Android
+ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
+ANDROID_OUT_FILES :=
+
+else
 ANDROID_OUT_FILES := \
 	out/host/linux-x86/bin/adb \
+	out/host/linux-x86/bin/mke2fs \
 	out/target/product/trusty/ramdisk.img \
 	out/target/product/trusty/system.img \
 	out/target/product/trusty/vendor.img \
 	out/target/product/trusty/userdata.img \
 	out/target/product/trusty/data/nativetest64 \
 
+endif
 # Copy Android prebuilts into the build directory so that the build does not
 # depend on any files in the source tree. We want to package the build artifacts
 # without any dependencies on the sources.
@@ -277,16 +305,6 @@ ANDROID_OUT_BUILD_DIR := $(BUILDDIR)/aosp/android
 
 ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_BUILD_DIR)/out/target/product/trusty
 ANDROID_OUT_ADB_PATH := $(ANDROID_OUT_BUILD_DIR)/out/host/linux-x86/bin/adb
-
-ifneq (,$(ANDROID_BUILD_TOP))
-# We are building Trusty inside an Android environment,
-# which means we can use a fresh Android build instead of prebuilts
-ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
-else
-ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
-endif
-
-ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
 
 # Copy the files listed in ANDROID_OUT_FILES from ANDROID_OUT_SRC_DIR into
 # ANDROID_OUT_BUILD_DIR preserving the directory structure relative to the

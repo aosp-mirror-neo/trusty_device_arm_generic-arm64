@@ -69,6 +69,7 @@ class Config(object):
         arch:             Architecture definition.
         rpmbd:            Path to the rpmb daemon to use.
         adb:              Path to adb host tool.
+        extra_linux_args: Extra arguments to pass to Linux kernel.
         extra_qemu_flags: Extra flags to pass to QEMU.
     Setting android or linux to a false value will result in a QEMU which starts
     without those components. Only one of android and android_image_dir may be provided
@@ -117,6 +118,7 @@ class Config(object):
         self.qemu = abspath("qemu", "qemu-system-aarch64")
         self.rpmbd = abspath("rpmbd")
         self.arch = config_dict.get("arch")
+        self.extra_linux_args = config_dict.get("extra_linux_args", [])
         self.extra_qemu_flags = config_dict.get("extra_qemu_flags", [])
 
     def check_config(self, interactive: bool, boot_tests=(),
@@ -825,6 +827,8 @@ class Runner(object):
 
         if self.config.linux:
             args += self.qemu_arch_options.linux_options()
+            if len(self.config.extra_linux_args) > 0:
+                args[-1] += " " + " ".join(self.config.extra_linux_args)
 
         if self.config.boot_android:
             args += self.qemu_arch_options.android_drives_args()
