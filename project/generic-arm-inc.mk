@@ -123,7 +123,7 @@ endif
 #
 # - Rust implementation:   export TRUSTY_KEYMINT_IMPL=rust
 # - C++ implementation:    (any other value of TRUSTY_KEYMINT_IMPL)
-
+TRUSTY_KEYMINT_IMPL := rust
 ifeq ($(TRUSTY_KEYMINT_IMPL),rust)
     TRUSTY_KEYMINT_USER_TASK := trusty/user/app/keymint/app
 else
