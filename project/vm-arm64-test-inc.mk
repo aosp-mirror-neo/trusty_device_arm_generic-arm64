@@ -13,11 +13,15 @@
 # limitations under the License.
 #
 
-include project/vm-arm-virt-test-inc.mk
+include project/vm-arm-virt-inc.mk
 
 #
-# overwrite list of TAs
+# include list of test TAs for the Trusted HALs
 #
+TRUSTY_RUST_USER_TESTS := \
+	trusty/user/app/sample/hwcryptokey-test \
+	trusty/user/app/storage/test/storage-unittest-aidl \
+	trusty/user/app/storage/test/storage-unittest-aidl/ns \
 
 # the test-vm does not include any TAs by default
 # (except for the test TAs that are included by virt-test-inc.mk)
