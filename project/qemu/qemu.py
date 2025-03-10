@@ -19,6 +19,7 @@ import threading
 
 from typing import Optional, List
 
+import alloc_adb_ports
 import qemu_options
 from qemu_error import AdbFailure, ConfigError, RunnerGenericError, Timeout
 
@@ -155,32 +156,6 @@ class Config(object):
 
             if not self.adb:
                 raise ConfigError("Missing adb tool for Android")
-
-
-def alloc_ports():
-    """Allocates 2 sequential ports above 5554 for adb"""
-    # adb uses ports in pairs
-    port_width = 2
-
-    # We can't actually reserve ports atomically for QEMU, but we can at
-    # least scan and find two that are not currently in use.
-    min_port = ADB_BASE_PORT
-    while True:
-        alloced_ports = []
-        for port in range(min_port, min_port + port_width):
-            # If the port is already in use, don't hand it out
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(("localhost", port))
-                break
-            except IOError:
-                alloced_ports += [port]
-        if len(alloced_ports) == port_width:
-            return alloced_ports
-
-        # We could increment by only 1, but if we are competing with other
-        # adb sessions for ports, this will be more polite
-        min_port += port_width
 
 
 def forward_ports(ports):
@@ -905,8 +880,8 @@ class Runner(object):
                 self.session.command_pipe = QEMUCommandPipe()
                 args += self.session.command_pipe.command_args
 
-            # Reserve ADB ports
-            self.session.ports = alloc_ports()
+            # Reserve ADB ports - adb uses ports in pairs
+            self.session.ports = alloc_adb_ports.alloc_adb_ports()
 
             # Write expected serial number (as given in adb) to stdout.
             sys.stdout.write(
