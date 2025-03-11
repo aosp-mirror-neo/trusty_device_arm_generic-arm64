@@ -9,6 +9,7 @@ import os
 from textwrap import dedent
 import re
 import select
+import shlex
 import socket
 import subprocess
 import shutil
@@ -19,6 +20,7 @@ import threading
 
 from typing import Optional, List
 
+import alloc_adb_ports
 import qemu_options
 from qemu_error import AdbFailure, ConfigError, RunnerGenericError, Timeout
 
@@ -155,32 +157,6 @@ class Config(object):
 
             if not self.adb:
                 raise ConfigError("Missing adb tool for Android")
-
-
-def alloc_ports():
-    """Allocates 2 sequential ports above 5554 for adb"""
-    # adb uses ports in pairs
-    port_width = 2
-
-    # We can't actually reserve ports atomically for QEMU, but we can at
-    # least scan and find two that are not currently in use.
-    min_port = ADB_BASE_PORT
-    while True:
-        alloced_ports = []
-        for port in range(min_port, min_port + port_width):
-            # If the port is already in use, don't hand it out
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(("localhost", port))
-                break
-            except IOError:
-                alloced_ports += [port]
-        if len(alloced_ports) == port_width:
-            return alloced_ports
-
-        # We could increment by only 1, but if we are competing with other
-        # adb sessions for ports, this will be more polite
-        min_port += port_width
 
 
 def forward_ports(ports):
@@ -664,6 +640,41 @@ class Runner(object):
             session.has_error = True
             raise
 
+    def hostcommandtest_run(self, hostcmd: str, test_timeout=None):
+        """
+        Run host command which interacts with a running Android device over adb.
+
+        This differs from android tests which run entirely on-device and boot tests
+        which runs without a full Android environment.
+        """
+
+        env = os.environ.copy()
+        env["ADB_PORT"] = str(self.session.ports[1])
+        env["PROJECT_ROOT"] = self.config.script_dir
+        cmd_status = 1
+        match shlex.split(hostcmd):
+            case []:  # parse error
+                raise RunnerGenericError(f"Invalid host cmd: {hostcmd}")
+            case [exe, *args]:
+                exe_path = [f"{self.config.script_dir}/host_commands/{exe}"]
+                try:
+                    subproc = subprocess.run(
+                        exe_path + args,timeout=test_timeout, env=env
+                        )
+                    cmd_status = subproc.returncode
+                except subprocess.TimeoutExpired:
+                    print(
+                        f"Host command test timed out ({test_timeout} s): {hostcmd}"
+                    )
+                    qemu_handle_error(
+                        command_pipe=self.session.command_pipe,
+                        debug_on_error=self.debug_on_error
+                    )
+            case _:  # this shouldn't happen
+                raise RunnerGenericError(f"Unknown error")
+
+        return cmd_status
+
     def adb_bin(self):
         """Returns location of adb"""
         return self.config.adb
@@ -905,8 +916,8 @@ class Runner(object):
                 self.session.command_pipe = QEMUCommandPipe()
                 args += self.session.command_pipe.command_args
 
-            # Reserve ADB ports
-            self.session.ports = alloc_ports()
+            # Reserve ADB ports - adb uses ports in pairs
+            self.session.ports = alloc_adb_ports.alloc_adb_ports()
 
             # Write expected serial number (as given in adb) to stdout.
             sys.stdout.write(
@@ -1015,35 +1026,37 @@ class Runner(object):
 
     def run(self, boot_tests: Optional[List] = None,
             android_tests: Optional[List] = None,
+            hostcommand_tests: Optional[List] = None,
             timeout: Optional[int] = None) -> List[int]:
         """Run boot or android tests.
 
         Runs boot_tests through test_runner, android_tests through ADB,
-        returning aggregated test return codes in a list.
+        hostcommand_tests on host after starting ADB, returning
+        aggregated test return codes in a list.
 
         Returns:
           A list of return codes for the provided tests.
           A negative return code indicates an internal tool failure.
 
         Limitations:
-          Until test_runner is updated, only one of android_tests or boot_tests
-          may be provided.
+          Until test_runner is updated, only one of android_tests,
+          hostcommand_tests,  or boot_tests may be provided.
           Similarly, while boot_tests is a list, test_runner only knows how to
           correctly run a single test at a time.
           Again due to test_runner's current state, if boot_tests are
           specified, interactive will be ignored since the machine will
           terminate itself.
 
-          If android_tests is provided, a Linux and Android dir must be
-          provided in the config.
+          If android_tests or hostcommand_tests is provided, a Linux and
+          Android dir must be provided in the config.
         """
         assert self.state == RunnerState.OFF
         self.config.check_config(self.interactive, boot_tests, android_tests)
 
-        if boot_tests and android_tests:
+        if boot_tests and (android_tests or hostcommand_tests):
             raise RunnerGenericError(
-                "Cannot run boot tests and android tests in the same "
-                "QEMU instance")
+                "Cannot run boot tests and android or hostcommand tests"
+                " in the same QEMU instance")
 
         if boot_tests and len(boot_tests) > 1:
             raise RunnerGenericError(
@@ -1061,6 +1074,13 @@ class Runner(object):
             if android_tests:
                 for android_test in android_tests:
                     test_result = self.androidtest_run([android_test], timeout)
+                    test_results.append(test_result)
+                    if test_result:
+                        break
+
+            if hostcommand_tests:
+                for hostcommand_test in hostcommand_tests:
+                    test_result = self.hostcommandtest_run(hostcommand_test, timeout)
                     test_results.append(test_result)
                     if test_result:
                         break
