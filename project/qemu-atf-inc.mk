@@ -80,7 +80,9 @@ $(HAFNIUM_DTBS_OUT): $(ATF_OUT_DIR)/%.dtb: $(ATF_OUT_DIR)/fdts/%.dtb
 	$(NOECHO)ln -rsf $< $@
 
 EXTRA_BUILDDEPS += $(HAFNIUM_DTBS_OUT)
-EXTRA_ATF_SYMLINKS += $(HAFNIUM_DTBS_OUT)
+EXTRA_ATF_SYMLINKS += $(addprefix $(ATF_OUT_DIR)/, $(HAFNIUM_DTBS))
+ATF_EXTRA_BINS += $(addprefix $(ATF_OUT_DIR)/fdts/, $(HAFNIUM_DTBS))
+
 else ifeq ($(SPMC_EL), 3)
 EL3SPMC_TOS_FW_CONFIG_DTS := \
 	$(TRUSTY_TOP)/trusty/device/arm/generic-arm64/project/el3spmc/tos_fw_config.dts
@@ -93,7 +95,8 @@ $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT): $(EL3SPMC_TOS_FW_CONFIG_DTB_SRC)
 	$(NOECHO)ln -rsf $< $@
 
 EXTRA_BUILDDEPS += $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT)
-EXTRA_ATF_SYMLINKS += $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT)
+EXTRA_ATF_SYMLINKS += $(ATF_OUT_DIR)/tos_fw_config.dtb
+ATF_EXTRA_BINS += $(ATF_OUT_DIR)/fdts/tos_fw_config.dtb
 
 ATF_MAKE_ARGS := SPD=spmd
 ATF_MAKE_ARGS += SPMC_AT_EL3=1
