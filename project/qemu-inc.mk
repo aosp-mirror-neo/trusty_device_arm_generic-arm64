@@ -177,7 +177,7 @@ $(ATF_OUT_DIR):
 
 # ATF built binaries
 ATF_BIN := $(ATF_OUT_DIR)/bl31.bin
-ATF_EXTRA_BINS := \
+ATF_EXTRA_BINS += \
 	$(ATF_OUT_DIR)/bl1.bin \
 	$(ATF_OUT_DIR)/bl2.bin \
 
