@@ -18,7 +18,7 @@ import tempfile
 import time
 import threading
 
-from typing import Optional, List
+from typing import Optional, List, IO
 
 import alloc_adb_ports
 import qemu_options
@@ -185,8 +185,8 @@ class QEMUCommandPipe(object):
             f"pipe,id=command0,path={self.command_dir}/com", "-mon",
             "chardev=command0,mode=control"
         ]
-        self.com_pipe_in = None
-        self.com_pipe_out = None
+        self.com_pipe_in: Optional[IO] = None
+        self.com_pipe_out: Optional[IO] = None
 
     def open(self):
         # pylint: disable=consider-using-with
@@ -221,11 +221,12 @@ class QEMUCommandPipe(object):
                 raise RunnerGenericError("Failed to clean up command pipe.")
 
         # Clean up our command pipe
-        shutil.rmtree(self.command_dir, onerror=cb_handle_error)
+        shutil.rmtree(self.command_dir, onexc=cb_handle_error)
 
     def qmp_command(self, qmp_command):
         """Send a qmp command and return result."""
-
+        assert self.com_pipe_in
+        assert self.com_pipe_out
         try:
             json.dump(qmp_command, self.com_pipe_in)
             self.com_pipe_in.flush()
@@ -322,7 +323,7 @@ class RunnerSession:
         self.has_error = False
         self.command_pipe = None
         self.qemu_proc = None
-        self.ports = None
+        self.ports: Optional[List[int]] = None
         # stores the arguments used to start qemu iff performing a boot test
         self.args = []
         self.temp_files = []
@@ -359,13 +360,13 @@ class Runner(object):
         self.interactive = interactive
         self.debug = debug
         self.verbose = verbose
-        self.adb_transport = None
+        self.adb_transport: Optional[int] = None
         self.use_rpmb = rpmb
-        self.rpmb_proc = None
-        self.rpmb_sock_dir = None
-        self.msg_sock = None
-        self.msg_sock_conn = None
-        self.msg_sock_dir = None
+        self.rpmb_proc: Optional[subprocess.Popen[bytes]] = None
+        self.rpmb_sock_dir: Optional[str] = None
+        self.msg_sock: Optional[socket.socket] = None
+        self.msg_sock_conn: Optional[socket.socket] = None
+        self.msg_sock_dir: Optional[str] = None
         self.debug_on_error = debug_on_error
         self.dump_stdout_on_error = False
         self.default_timeout = 60 * 10  # 10 Minutes
@@ -375,8 +376,8 @@ class Runner(object):
 
         # If we're not verbose or interactive, squelch command output
         if verbose or self.interactive:
-            self.stdout = None
-            self.stderr = None
+            self.stdout: Optional[IO] = None
+            self.stderr: Optional[int] = None
         else:
             self.stdout = tempfile.TemporaryFile()  # pylint: disable=consider-using-with
             self.stderr = subprocess.STDOUT
@@ -399,6 +400,8 @@ class Runner(object):
 
     def error_dump_output(self):
         if self.dump_stdout_on_error:
+            assert self.stdout
+            assert self.session
             sys.stdout.flush()
             sys.stderr.write("System log:\n")
             self.stdout.seek(0)
@@ -406,6 +409,7 @@ class Runner(object):
 
     def get_qemu_arg_temp_file(self):
         """Returns a temp file that will be deleted after qemu exits."""
+        assert self.session
         # pylint: disable=consider-using-with
         tmp = tempfile.NamedTemporaryFile(delete=False)
         self.session.temp_files.append(tmp.name)
@@ -480,7 +484,7 @@ class Runner(object):
 
     def msg_channel_wait_for_connection(self):
         """wait for testrunner to connect."""
-
+        assert self.msg_sock
         # Accept testrunner's connection request
         self.msg_sock_conn, _ = self.msg_sock.accept()
 
@@ -512,6 +516,7 @@ class Runner(object):
 
     def boottest_run(self, boot_tests, timeout=60 * 2):
         """Run boot test cases"""
+        assert self.session
         args = self.session.args
         has_error = False
         result = 2
@@ -618,8 +623,8 @@ class Runner(object):
 
     def androidtest_run(self, cmd, test_timeout=None):
         """Run android test cases"""
+        assert self.session, "No session; call launch before running any tests."
         session: RunnerSession = self.session
-        assert session, "No session; must call launch before running any tests."
 
         try:
             if not test_timeout:
@@ -647,6 +652,8 @@ class Runner(object):
         This differs from android tests which run entirely on-device and boot tests
         which runs without a full Android environment.
         """
+        assert self.session, "No session; call launch before running any tests."
+        assert self.session.ports, "No ports; did the QEMU session launch cleanly?"
 
         env = os.environ.copy()
         env["ADB_PORT"] = str(self.session.ports[1])
@@ -788,7 +795,7 @@ class Runner(object):
 
         # Sometimes adb can get stuck and will never connect. Using multiple
         # shorter timeouts works better than one longer timeout in such cases.
-        adb_exception = None
+        adb_exception: Optional[AdbFailure] = None
         for _ in range(10):
             try:
                 self.check_adb(["wait-for-device"], timeout=30, on_timeout=None)
@@ -798,6 +805,7 @@ class Runner(object):
                 continue
         else:
             print("'adb wait-for-device' Timed out")
+            assert adb_exception
             raise adb_exception
 
         self.adb_root()
@@ -918,6 +926,7 @@ class Runner(object):
 
             # Reserve ADB ports - adb uses ports in pairs
             self.session.ports = alloc_adb_ports.alloc_adb_ports()
+            assert self.session.ports
 
             # Write expected serial number (as given in adb) to stdout.
             sys.stdout.write(
@@ -968,7 +977,7 @@ class Runner(object):
         if self.state == RunnerState.OFF:
             return
 
-        assert self.session is not None
+        assert self.session
 
         # Clean up generated device tree
         for temp_file in self.session.temp_files:
@@ -994,6 +1003,7 @@ class Runner(object):
 
         if self.adb_transport:
             # Disconnect ADB and wait for our port to be released by qemu
+            assert self.session.ports
             self.adb_down(self.session.ports[1])
 
         # Ideally, we'd clear on launch instead, but it doesn't know whether a
@@ -1091,5 +1101,6 @@ class Runner(object):
             # take away the user's serial console in interactive mode.
             if self.interactive and self.session:
                 # The user is responsible for quitting QEMU
+                assert self.session.qemu_proc
                 self.session.qemu_proc.wait()
             self.shutdown(factory_reset=True, full_wipe=False)
