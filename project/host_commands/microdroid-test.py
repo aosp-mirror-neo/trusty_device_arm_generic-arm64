@@ -17,8 +17,8 @@ except KeyError:
     sys.exit(64)  # EX_USAGE
 
 sys.path.append(project_root)
-import alloc_adb_ports
-import qemu
+import alloc_adb_ports  # type: ignore
+import qemu  # type: ignore
 
 
 MIN_MICRODROID_PORT = 8000
@@ -106,9 +106,8 @@ class Microdroid(object):
 
     def __init__(self, adb):
         self.adb = adb
-        self.stop_thread = False
         self.cid = None
-        self.cid_queue = queue.Queue()
+        self.cid_queue: queue.Queue = queue.Queue()
 
     def process_output(self, pipe):
         """Filters stdout, searching for Microdroid's CID"""
@@ -131,7 +130,7 @@ class Microdroid(object):
         self.microdroid_proc = self.adb.run_background(["shell"] + command.split(" "))
         self.microdroid_output_thread = threading.Thread(
             target=self.process_output, args=[self.microdroid_proc.stdout],
-            daemon=1
+            daemon=True
         )
 
         self.microdroid_output_thread.start()
