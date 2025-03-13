@@ -690,6 +690,7 @@ class Runner(object):
             args,
             timeout=60,
             on_timeout=lambda timeout: print(f"Timed out ({timeout} s)"),
+            need_qemu_running=False,
             force_output=False):
         """Runs an adb command
 
@@ -698,9 +699,27 @@ class Runner(object):
 
         Timeout specifies a timeout for the command in seconds.
 
+        If need_qemu_running is set to True the command will not be sent if
+        QEMU is not running. Set this to True when using "wait-for-device"
+        since "wait-for-device" can't tell the difference between adbd had not
+        started yet and adbd will never start since the emulator is no longer
+        running. Also, since this option currently only checks if QEMU is
+        running before sending the command, use this with short timeout values.
+
         If force_output is set true, will send results to stdout and
         stderr regardless of the runner's preferences.
         """
+
+        if need_qemu_running and self.session.qemu_proc.poll() is not None:
+            # Check if qemu is still running to avoid wasting time waiting for
+            # a command that can never succeed. Qemu should not normally exit
+            # before or while we are waiting for an adb command to complete.
+            # If it does the emulated system has crashed and adb
+            # wait-for-device will never succeed. Normal adb shell commands
+            # return 255 if QEMU exits while the command is running, so return
+            # the same status value here.
+            return 255
+
         if self.adb_transport:
             args = ["-t", str(self.adb_transport)] + args
 
@@ -742,12 +761,12 @@ class Runner(object):
         num_tries = 0
 
         # Ensure device is up else adb root can fail
-        self.adb(["wait-for-device"])
+        self.adb(["wait-for-device"], need_qemu_running=True)
         self.check_adb(["root"])
 
         while True:
             # adbd might not be down by this point yet
-            self.adb(["wait-for-device"])
+            self.adb(["wait-for-device"], need_qemu_running=True)
 
             # Check that adbd is up and running with root permissions
             code = self.adb(["shell",
@@ -798,7 +817,8 @@ class Runner(object):
         adb_exception: Optional[AdbFailure] = None
         for _ in range(10):
             try:
-                self.check_adb(["wait-for-device"], timeout=30, on_timeout=None)
+                self.check_adb(["wait-for-device"], timeout=30,
+                               on_timeout=None, need_qemu_running=True)
                 break
             except AdbFailure as e:
                 adb_exception = e
