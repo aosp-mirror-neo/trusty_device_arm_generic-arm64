@@ -164,7 +164,6 @@ RUN_SCRIPT := $(BUILDDIR)/run
 STOP_SCRIPT := $(BUILDDIR)/stop
 ALLOC_ADB_PORTS_PY := $(BUILDDIR)/alloc_adb_ports.py
 HOST_COMMANDS_OUT_DIR := $(BUILDDIR)/host_commands
-QEMU_CONFIG := $(BUILDDIR)/config.json
 QEMU_PY := $(BUILDDIR)/qemu.py
 QEMU_ERROR_PY := $(BUILDDIR)/qemu_error.py
 QEMU_OPTIONS_PY := $(BUILDDIR)/qemu_options.py
@@ -316,7 +315,13 @@ endif
 # be cleared before copying in the fresh content. `rm -rf` is used to accomplish
 # this because it bypasses writing un-writeable files in addition to bringing
 # the target directory to the same state as with a clean build.
+ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
+ANDROID_OUT_BUILD_DIR :=
+
+else
 ANDROID_OUT_BUILD_DIR := $(BUILDDIR)/aosp/android
+
+endif
 
 ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_BUILD_DIR)/out/target/product/trusty
 ANDROID_OUT_ADB_PATH := $(ANDROID_OUT_BUILD_DIR)/out/host/linux-x86/bin/adb
@@ -337,6 +342,14 @@ $(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES) $(LINUX_RAMDISK_IMAGE)
 	@$(RAMDISK_CP) $(LINUX_RAMDISK_IMAGE) $(ANDROID_OUT_IMAGE_DIR)/ramdisk.img
 
 EXTRA_BUILDDEPS += $(ANDROID_OUT_BUILD_DIR)
+
+ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
+QEMU_CONFIG :=
+
+else
+QEMU_CONFIG := $(BUILDDIR)/config.json
+
+endif
 
 # Save variables to a json file to export paths known to the build system to
 # the test system
