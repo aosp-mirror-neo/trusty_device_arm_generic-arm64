@@ -641,6 +641,24 @@ class Runner(object):
             if test_result:
                 session.has_error = True
 
+            # If android reboots, adb starts failing before QEMU exits.
+            if self.adb(["get-state"]):
+                # Set self.state to RunnerState.ERROR if adb is no longer
+                # functional so the caller can reboot (if it needs to get back
+                # to a functional RunnerState.ANDROID state).
+                print("adb get-state failed after androidtest")
+                self.state = RunnerState.ERROR
+
+                # Give QEMU some time to exit.
+                self.session.qemu_proc.wait(10)
+
+            if self.session.qemu_proc.poll() is not None:
+                # Set self.state to RunnerState.ERROR if QEMU is no longer
+                # running so the caller can reboot (if it needs to get back to
+                # a functional RunnerState.ANDROID state).
+                print("QEMU is no longer running after androidtest")
+                self.state = RunnerState.ERROR
+
             return test_result
         except:
             session.has_error = True
