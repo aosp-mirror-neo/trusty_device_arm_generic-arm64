@@ -57,6 +57,7 @@ else
 LINUX_DEFCONFIG_FRAGMENTS := \
 	$(LINUX_CONFIG_DIR)/gki_defconfig \
 	$(if $(LINUX_TRUSTY_INTREE),$(LINUX_CONFIG_DIR)/trusty_qemu_defconfig.fragment) \
+	trusty/device/arm/generic-arm64/project/linux/disable_sig_protect.fragment
 
 endif
 
