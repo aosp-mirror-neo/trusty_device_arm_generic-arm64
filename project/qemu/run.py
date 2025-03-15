@@ -62,17 +62,18 @@ def _prepare_runner_for_test(runner, args):
     """
     if args.boot_test:
         target_state = qemu.RunnerState.BOOTLOADER
-    elif args.shell_command:
+    elif args.shell_command or args.host_command:
         target_state = qemu.RunnerState.ANDROID
     else:
         raise qemu_error.ConfigError(
-            "Command must request exactly one Android or boot test to run")
+            "Command must request exactly one Android, boot test, or"
+            " host command to run"
+        )
 
     # Due to limitations in the test runner, always reboot between boot tests
     if (runner.state != target_state or
             runner.state == qemu.RunnerState.BOOTLOADER):
         runner.reboot(target_state, factory_reset=True, full_wipe=False)
-
 
 def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
     args = build_argparser().parse_args(cmd)
@@ -84,6 +85,8 @@ def run_test(runner: qemu.Runner, cmd: List[str]) -> int:
         return runner.boottest_run(args.boot_test, timeout)
     if args.shell_command:
         return runner.androidtest_run(args.shell_command, timeout)
+    if args.host_command:
+        return runner.hostcommandtest_run(args.host_command[0], timeout)
 
     raise qemu.RunnerGenericError(
         "Command contained neither a boot test nor an Android test to run")
@@ -105,6 +108,7 @@ def build_argparser():
     argument_parser.add_argument("--debug-on-error", action="store_true")
     argument_parser.add_argument("--boot-test", action="append")
     argument_parser.add_argument("--shell-command", action="append")
+    argument_parser.add_argument("--host-command", action="append")
     argument_parser.add_argument("--android")
     argument_parser.add_argument("--linux")
     argument_parser.add_argument("--initrd")
@@ -154,7 +158,8 @@ def main():
                          debug_on_error=args.debug_on_error)
 
     try:
-        results = runner.run(args.boot_test, args.shell_command, args.timeout)
+        results = runner.run(args.boot_test, args.shell_command,
+                             args.host_command, args.timeout)
         print("Command results: " + repr(results))
 
         if any(results):
