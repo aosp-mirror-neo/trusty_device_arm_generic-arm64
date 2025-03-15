@@ -177,6 +177,7 @@ TRUSTY_PREBUILT_USER_TASKS :=
 
 # compiled from source
 TRUSTY_BUILTIN_USER_TASKS := \
+	trusty/user/app/authmgr/authmgr-be/app \
 	trusty/user/app/avb \
 	trusty/user/app/cast-auth/app \
 	trusty/user/app/confirmationui \
