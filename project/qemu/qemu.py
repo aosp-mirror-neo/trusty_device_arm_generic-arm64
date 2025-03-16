@@ -9,6 +9,7 @@ import os
 from textwrap import dedent
 import re
 import select
+import shlex
 import socket
 import subprocess
 import shutil
@@ -17,8 +18,9 @@ import tempfile
 import time
 import threading
 
-from typing import Optional, List
+from typing import Optional, List, IO
 
+import alloc_adb_ports
 import qemu_options
 from qemu_error import AdbFailure, ConfigError, RunnerGenericError, Timeout
 
@@ -157,32 +159,6 @@ class Config(object):
                 raise ConfigError("Missing adb tool for Android")
 
 
-def alloc_ports():
-    """Allocates 2 sequential ports above 5554 for adb"""
-    # adb uses ports in pairs
-    port_width = 2
-
-    # We can't actually reserve ports atomically for QEMU, but we can at
-    # least scan and find two that are not currently in use.
-    min_port = ADB_BASE_PORT
-    while True:
-        alloced_ports = []
-        for port in range(min_port, min_port + port_width):
-            # If the port is already in use, don't hand it out
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(("localhost", port))
-                break
-            except IOError:
-                alloced_ports += [port]
-        if len(alloced_ports) == port_width:
-            return alloced_ports
-
-        # We could increment by only 1, but if we are competing with other
-        # adb sessions for ports, this will be more polite
-        min_port += port_width
-
-
 def forward_ports(ports):
     """Generates arguments to forward ports in QEMU on a virtio network"""
     forwards = ""
@@ -209,8 +185,8 @@ class QEMUCommandPipe(object):
             f"pipe,id=command0,path={self.command_dir}/com", "-mon",
             "chardev=command0,mode=control"
         ]
-        self.com_pipe_in = None
-        self.com_pipe_out = None
+        self.com_pipe_in: Optional[IO] = None
+        self.com_pipe_out: Optional[IO] = None
 
     def open(self):
         # pylint: disable=consider-using-with
@@ -245,11 +221,12 @@ class QEMUCommandPipe(object):
                 raise RunnerGenericError("Failed to clean up command pipe.")
 
         # Clean up our command pipe
-        shutil.rmtree(self.command_dir, onerror=cb_handle_error)
+        shutil.rmtree(self.command_dir, onexc=cb_handle_error)
 
     def qmp_command(self, qmp_command):
         """Send a qmp command and return result."""
-
+        assert self.com_pipe_in
+        assert self.com_pipe_out
         try:
             json.dump(qmp_command, self.com_pipe_in)
             self.com_pipe_in.flush()
@@ -346,7 +323,7 @@ class RunnerSession:
         self.has_error = False
         self.command_pipe = None
         self.qemu_proc = None
-        self.ports = None
+        self.ports: Optional[List[int]] = None
         # stores the arguments used to start qemu iff performing a boot test
         self.args = []
         self.temp_files = []
@@ -362,6 +339,7 @@ class RunnerState(enum.Enum):
     OFF = 0
     BOOTLOADER = 1
     ANDROID = 2
+    ERROR = 3
 
 
 class Runner(object):
@@ -383,13 +361,13 @@ class Runner(object):
         self.interactive = interactive
         self.debug = debug
         self.verbose = verbose
-        self.adb_transport = None
+        self.adb_transport: Optional[int] = None
         self.use_rpmb = rpmb
-        self.rpmb_proc = None
-        self.rpmb_sock_dir = None
-        self.msg_sock = None
-        self.msg_sock_conn = None
-        self.msg_sock_dir = None
+        self.rpmb_proc: Optional[subprocess.Popen[bytes]] = None
+        self.rpmb_sock_dir: Optional[str] = None
+        self.msg_sock: Optional[socket.socket] = None
+        self.msg_sock_conn: Optional[socket.socket] = None
+        self.msg_sock_dir: Optional[str] = None
         self.debug_on_error = debug_on_error
         self.dump_stdout_on_error = False
         self.default_timeout = 60 * 10  # 10 Minutes
@@ -399,8 +377,8 @@ class Runner(object):
 
         # If we're not verbose or interactive, squelch command output
         if verbose or self.interactive:
-            self.stdout = None
-            self.stderr = None
+            self.stdout: Optional[IO] = None
+            self.stderr: Optional[int] = None
         else:
             self.stdout = tempfile.TemporaryFile()  # pylint: disable=consider-using-with
             self.stderr = subprocess.STDOUT
@@ -423,6 +401,8 @@ class Runner(object):
 
     def error_dump_output(self):
         if self.dump_stdout_on_error:
+            assert self.stdout
+            assert self.session
             sys.stdout.flush()
             sys.stderr.write("System log:\n")
             self.stdout.seek(0)
@@ -430,6 +410,7 @@ class Runner(object):
 
     def get_qemu_arg_temp_file(self):
         """Returns a temp file that will be deleted after qemu exits."""
+        assert self.session
         # pylint: disable=consider-using-with
         tmp = tempfile.NamedTemporaryFile(delete=False)
         self.session.temp_files.append(tmp.name)
@@ -504,7 +485,7 @@ class Runner(object):
 
     def msg_channel_wait_for_connection(self):
         """wait for testrunner to connect."""
-
+        assert self.msg_sock
         # Accept testrunner's connection request
         self.msg_sock_conn, _ = self.msg_sock.accept()
 
@@ -536,6 +517,7 @@ class Runner(object):
 
     def boottest_run(self, boot_tests, timeout=60 * 2):
         """Run boot test cases"""
+        assert self.session
         args = self.session.args
         has_error = False
         result = 2
@@ -642,8 +624,8 @@ class Runner(object):
 
     def androidtest_run(self, cmd, test_timeout=None):
         """Run android test cases"""
+        assert self.session, "No session; call launch before running any tests."
         session: RunnerSession = self.session
-        assert session, "No session; must call launch before running any tests."
 
         try:
             if not test_timeout:
@@ -659,10 +641,65 @@ class Runner(object):
             if test_result:
                 session.has_error = True
 
+            # If android reboots, adb starts failing before QEMU exits.
+            if self.adb(["get-state"]):
+                # Set self.state to RunnerState.ERROR if adb is no longer
+                # functional so the caller can reboot (if it needs to get back
+                # to a functional RunnerState.ANDROID state).
+                print("adb get-state failed after androidtest")
+                self.state = RunnerState.ERROR
+
+                # Give QEMU some time to exit.
+                self.session.qemu_proc.wait(10)
+
+            if self.session.qemu_proc.poll() is not None:
+                # Set self.state to RunnerState.ERROR if QEMU is no longer
+                # running so the caller can reboot (if it needs to get back to
+                # a functional RunnerState.ANDROID state).
+                print("QEMU is no longer running after androidtest")
+                self.state = RunnerState.ERROR
+
             return test_result
         except:
             session.has_error = True
             raise
+
+    def hostcommandtest_run(self, hostcmd: str, test_timeout=None):
+        """
+        Run host command which interacts with a running Android device over adb.
+
+        This differs from android tests which run entirely on-device and boot tests
+        which runs without a full Android environment.
+        """
+        assert self.session, "No session; call launch before running any tests."
+        assert self.session.ports, "No ports; did the QEMU session launch cleanly?"
+
+        env = os.environ.copy()
+        env["ADB_PORT"] = str(self.session.ports[1])
+        env["PROJECT_ROOT"] = self.config.script_dir
+        cmd_status = 1
+        match shlex.split(hostcmd):
+            case []:  # parse error
+                raise RunnerGenericError(f"Invalid host cmd: {hostcmd}")
+            case [exe, *args]:
+                exe_path = [f"{self.config.script_dir}/host_commands/{exe}"]
+                try:
+                    subproc = subprocess.run(
+                        exe_path + args,timeout=test_timeout, env=env
+                        )
+                    cmd_status = subproc.returncode
+                except subprocess.TimeoutExpired:
+                    print(
+                        f"Host command test timed out ({test_timeout} s): {hostcmd}"
+                    )
+                    qemu_handle_error(
+                        command_pipe=self.session.command_pipe,
+                        debug_on_error=self.debug_on_error
+                    )
+            case _:  # this shouldn't happen
+                raise RunnerGenericError(f"Unknown error")
+
+        return cmd_status
 
     def adb_bin(self):
         """Returns location of adb"""
@@ -672,6 +709,7 @@ class Runner(object):
             args,
             timeout=60,
             on_timeout=lambda timeout: print(f"Timed out ({timeout} s)"),
+            need_qemu_running=False,
             force_output=False):
         """Runs an adb command
 
@@ -680,9 +718,27 @@ class Runner(object):
 
         Timeout specifies a timeout for the command in seconds.
 
+        If need_qemu_running is set to True the command will not be sent if
+        QEMU is not running. Set this to True when using "wait-for-device"
+        since "wait-for-device" can't tell the difference between adbd had not
+        started yet and adbd will never start since the emulator is no longer
+        running. Also, since this option currently only checks if QEMU is
+        running before sending the command, use this with short timeout values.
+
         If force_output is set true, will send results to stdout and
         stderr regardless of the runner's preferences.
         """
+
+        if need_qemu_running and self.session.qemu_proc.poll() is not None:
+            # Check if qemu is still running to avoid wasting time waiting for
+            # a command that can never succeed. Qemu should not normally exit
+            # before or while we are waiting for an adb command to complete.
+            # If it does the emulated system has crashed and adb
+            # wait-for-device will never succeed. Normal adb shell commands
+            # return 255 if QEMU exits while the command is running, so return
+            # the same status value here.
+            return 255
+
         if self.adb_transport:
             args = ["-t", str(self.adb_transport)] + args
 
@@ -703,7 +759,10 @@ class Runner(object):
         except subprocess.TimeoutExpired:
             if on_timeout:
                 on_timeout()
-
+        finally:
+            # Make sure we don't return with adp_proc still running.
+            # Since adb_proc.kill() is a NOP if adb_proc.wait() completed we
+            # can call this unconditionally.
             try:
                 adb_proc.kill()
             except OSError:
@@ -724,12 +783,12 @@ class Runner(object):
         num_tries = 0
 
         # Ensure device is up else adb root can fail
-        self.adb(["wait-for-device"])
+        self.adb(["wait-for-device"], need_qemu_running=True)
         self.check_adb(["root"])
 
         while True:
             # adbd might not be down by this point yet
-            self.adb(["wait-for-device"])
+            self.adb(["wait-for-device"], need_qemu_running=True)
 
             # Check that adbd is up and running with root permissions
             code = self.adb(["shell",
@@ -777,16 +836,18 @@ class Runner(object):
 
         # Sometimes adb can get stuck and will never connect. Using multiple
         # shorter timeouts works better than one longer timeout in such cases.
-        adb_exception = None
+        adb_exception: Optional[AdbFailure] = None
         for _ in range(10):
             try:
-                self.check_adb(["wait-for-device"], timeout=30, on_timeout=None)
+                self.check_adb(["wait-for-device"], timeout=30,
+                               on_timeout=None, need_qemu_running=True)
                 break
             except AdbFailure as e:
                 adb_exception = e
                 continue
         else:
             print("'adb wait-for-device' Timed out")
+            assert adb_exception
             raise adb_exception
 
         self.adb_root()
@@ -864,6 +925,11 @@ class Runner(object):
         assert target_state in [RunnerState.BOOTLOADER,
                                 RunnerState.ANDROID], target_state
 
+        # Set self.state to RunnerState.ERROR in case we get an exception
+        # before self.state is set to target_state. This tells shutdown that
+        # cleanup might be needed.
+        self.state = RunnerState.ERROR
+
         self.session = RunnerSession()
         args = self.universal_args()
 
@@ -905,8 +971,9 @@ class Runner(object):
                 self.session.command_pipe = QEMUCommandPipe()
                 args += self.session.command_pipe.command_args
 
-            # Reserve ADB ports
-            self.session.ports = alloc_ports()
+            # Reserve ADB ports - adb uses ports in pairs
+            self.session.ports = alloc_adb_ports.alloc_adb_ports()
+            assert self.session.ports
 
             # Write expected serial number (as given in adb) to stdout.
             sys.stdout.write(
@@ -957,7 +1024,7 @@ class Runner(object):
         if self.state == RunnerState.OFF:
             return
 
-        assert self.session is not None
+        assert self.session
 
         # Clean up generated device tree
         for temp_file in self.session.temp_files:
@@ -983,6 +1050,7 @@ class Runner(object):
 
         if self.adb_transport:
             # Disconnect ADB and wait for our port to be released by qemu
+            assert self.session.ports
             self.adb_down(self.session.ports[1])
 
         # Ideally, we'd clear on launch instead, but it doesn't know whether a
@@ -1015,35 +1083,37 @@ class Runner(object):
 
     def run(self, boot_tests: Optional[List] = None,
             android_tests: Optional[List] = None,
+            hostcommand_tests: Optional[List] = None,
             timeout: Optional[int] = None) -> List[int]:
         """Run boot or android tests.
 
         Runs boot_tests through test_runner, android_tests through ADB,
-        returning aggregated test return codes in a list.
+        hostcommand_tests on host after starting ADB, returning
+        aggregated test return codes in a list.
 
         Returns:
           A list of return codes for the provided tests.
           A negative return code indicates an internal tool failure.
 
         Limitations:
-          Until test_runner is updated, only one of android_tests or boot_tests
-          may be provided.
+          Until test_runner is updated, only one of android_tests,
+          hostcommand_tests,  or boot_tests may be provided.
           Similarly, while boot_tests is a list, test_runner only knows how to
           correctly run a single test at a time.
           Again due to test_runner's current state, if boot_tests are
           specified, interactive will be ignored since the machine will
           terminate itself.
 
-          If android_tests is provided, a Linux and Android dir must be
-          provided in the config.
+          If android_tests or hostcommand_tests is provided, a Linux and
+          Android dir must be provided in the config.
         """
         assert self.state == RunnerState.OFF
         self.config.check_config(self.interactive, boot_tests, android_tests)
 
-        if boot_tests and android_tests:
+        if boot_tests and (android_tests or hostcommand_tests):
             raise RunnerGenericError(
-                "Cannot run boot tests and android tests in the same "
-                "QEMU instance")
+                "Cannot run boot tests and android or hostcommand tests"
+                " in the same QEMU instance")
 
         if boot_tests and len(boot_tests) > 1:
             raise RunnerGenericError(
@@ -1065,11 +1135,19 @@ class Runner(object):
                     if test_result:
                         break
 
+            if hostcommand_tests:
+                for hostcommand_test in hostcommand_tests:
+                    test_result = self.hostcommandtest_run(hostcommand_test, timeout)
+                    test_results.append(test_result)
+                    if test_result:
+                        break
+
             return test_results
         finally:
             # The wait on QEMU is done here to ensure that ADB failures do not
             # take away the user's serial console in interactive mode.
             if self.interactive and self.session:
                 # The user is responsible for quitting QEMU
+                assert self.session.qemu_proc
                 self.session.qemu_proc.wait()
             self.shutdown(factory_reset=True, full_wipe=False)
