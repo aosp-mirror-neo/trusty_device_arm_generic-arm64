@@ -22,6 +22,7 @@ TRUSTY_RUST_USER_TESTS := \
 	trusty/user/app/sample/hwcryptokey-test \
 	trusty/user/app/storage/test/storage-unittest-aidl \
 	trusty/user/app/storage/test/storage-unittest-aidl/ns \
+	trusty/user/app/authmgr/authmgr-be/lib \
 
 # the test-vm does not include any TAs by default
 # (except for the test TAs that are included by virt-test-inc.mk)
