@@ -26,6 +26,15 @@ WITH_FAKE_KEYBOX ?= false
 
 USE_SYSTEM_BINDER := true
 
+# This keeps trusty is VMs in sync with the latest
+# Android Profile for DICE. This is required since
+# profile versions for each cert in a DICE chain must
+# be of greater than or equal version to their parent.
+# pvmfw uses the latest android profile for DICE and
+# launches trusty in protected VMs, so we match that
+# version.
+DICE_PROFILE_FOR_OPEN_DICE := android
+
 include project/generic-arm-virt-inc.mk
 include project/generic-arm-tz-inc.mk
 
