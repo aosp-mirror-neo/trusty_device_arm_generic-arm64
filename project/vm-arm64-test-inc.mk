@@ -19,6 +19,7 @@ include project/vm-arm-virt-inc.mk
 # include list of test TAs for the Trusted HALs
 #
 TRUSTY_RUST_USER_TESTS := \
+	trusty/user/app/authmgr/authmgr-fe \
 	trusty/user/app/sample/hwcryptokey-test \
 	trusty/user/app/storage/test/storage-unittest-aidl \
 	trusty/user/app/storage/test/storage-unittest-aidl/ns \
@@ -43,6 +44,7 @@ TRUSTY_RUST_USER_TESTS := \
 # disabling apploader service and rebalancing loadable test as builtin tests
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/base/app/apploader \
+	trusty/user/app/authmgr/authmgr-fe/app \
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
 TRUSTY_ALL_USER_TASKS += \
