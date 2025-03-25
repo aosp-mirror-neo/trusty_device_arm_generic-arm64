@@ -97,7 +97,7 @@ $(LINUX_TMP_DEFCONFIG): $(LINUX_DEFCONFIG_FRAGMENTS)
 # so we should delete it after we're done
 .INTERMEDIATE: $(LINUX_TMP_DEFCONFIG)
 
-LINUX_MODULES_LOAD := $(TRUSTY_TOP)/trusty/device/arm/generic-arm64/project/modules.load
+LINUX_MODULES_LOAD := $(TRUSTY_TOP)/trusty/device/arm/generic-arm64/project/linux/modules.load
 
 ifeq (,$(LINUX_TRUSTY_INTREE))
 # Make a copy of common-modules/trusty because the kernel build system
