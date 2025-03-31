@@ -15,6 +15,9 @@
 
 include project/vm-arm-virt-inc.mk
 
+# Enable Vintf TA for vts_treble_vintf_trusted_hal_test
+TRUSTY_VM_INCLUDE_VINTF_TA ?= true
+
 #
 # include list of test TAs for the Trusted HALs
 #
