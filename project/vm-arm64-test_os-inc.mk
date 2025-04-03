@@ -34,6 +34,7 @@ include project/vm-arm-virt-test-inc.mk
 # disabling apploader service and rebalancing loadable test as builtin tests
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/base/app/apploader \
+	trusty/user/app/authmgr/authmgr-fe/app \
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
 TRUSTY_ALL_USER_TASKS += \
@@ -46,3 +47,8 @@ TRUSTY_ALL_USER_TASKS += \
 	trusty/user/base/app/line-coverage \
 
 endif
+
+# TODO: b/377906851 - remove once authmgr-fe supports secure mode
+AUTHMGRFE_MODE_INSECURE ?= true
+# TODO: b/390627104 - remove once we are using a DICE handover provided by the kernel
+AUTHMGRFE_FAKE_DICE_CHAIN ?= true
