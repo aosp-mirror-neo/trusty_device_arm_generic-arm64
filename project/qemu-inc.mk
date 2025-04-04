@@ -209,7 +209,19 @@ $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
 ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
 ANDROID_OUT_SRC_DIR :=
 ANDROID_OUT_SRC_FILES :=
+ANDROID_OUT_FILES :=
 else
+
+# List of files we need from Android
+ANDROID_OUT_FILES := \
+	out/host/linux-x86/bin/adb \
+	out/host/linux-x86/bin/mke2fs \
+	out/target/product/trusty/ramdisk.img \
+	out/target/product/trusty/system.img \
+	out/target/product/trusty/vendor.img \
+	out/target/product/trusty/userdata.img \
+	out/target/product/trusty/data/nativetest64 \
+
 ifneq (,$(ANDROID_BUILD_TOP))
 # We are building Trusty inside an Android environment,
 # which means we can use a fresh Android build instead of prebuilts
@@ -293,21 +305,6 @@ $(PY3_CMD): $(BUILDTOOLS_BINDIR)/py3-cmd
 
 EXTRA_BUILDDEPS += $(PY3_CMD)
 
-# List of files we need from Android
-ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
-ANDROID_OUT_FILES :=
-
-else
-ANDROID_OUT_FILES := \
-	out/host/linux-x86/bin/adb \
-	out/host/linux-x86/bin/mke2fs \
-	out/target/product/trusty/ramdisk.img \
-	out/target/product/trusty/system.img \
-	out/target/product/trusty/vendor.img \
-	out/target/product/trusty/userdata.img \
-	out/target/product/trusty/data/nativetest64 \
-
-endif
 # Copy Android prebuilts into the build directory so that the build does not
 # depend on any files in the source tree. We want to package the build artifacts
 # without any dependencies on the sources.
