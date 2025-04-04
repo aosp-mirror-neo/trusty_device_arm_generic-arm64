@@ -222,11 +222,28 @@ ANDROID_OUT_FILES := \
 	out/target/product/trusty/userdata.img \
 	out/target/product/trusty/data/nativetest64 \
 
-ifneq (,$(ANDROID_BUILD_TOP))
+ifneq (,$(ANDROID_BUILD_ARTIFACTS))
+# Unpack and use build artifacts if requested (e.g. for a chained build).
+
+ANDROID_OUT_SRC_DIR := $(BUILDDIR)/aosp/unpacked_android_artifacts
+
+# TODO: The result here gets copied to ANDROID_OUT_BUILD_DIR later. It might
+# be simpler to run the unpack script in the prebuilt case as well and skip
+# the extra copy step.
+ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
+$(ANDROID_OUT_SRC_DIR) $(ANDROID_OUT_SRC_FILES) &: ANDROID_OUT_SRC_DIR := $(ANDROID_OUT_SRC_DIR)
+$(ANDROID_OUT_SRC_DIR) $(ANDROID_OUT_SRC_FILES) &: $(ANDROID_BUILD_ARTIFACTS)
+	@echo unpacking $< to $(ANDROID_OUT_SRC_DIR)
+	@rm -rf $(ANDROID_OUT_SRC_DIR)
+	trusty/prebuilts/aosp/unpack.py -o $(ANDROID_OUT_SRC_DIR) -a $<
+
+else ifneq (,$(ANDROID_BUILD_TOP))
 # We are building Trusty inside an Android environment,
 # which means we can use a fresh Android build instead of prebuilts
 ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
 else
+# Use unpacked prebuilt out dir if build artifacts are not specified and
+# ANDROID_BUILD_TOP was not set
 ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
 endif
 ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
@@ -234,7 +251,7 @@ endif
 
 MKE2FS ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin/mke2fs
 $(ATF_OUT_DIR)/metadata.img: MKE2FS := $(MKE2FS)
-$(ATF_OUT_DIR)/metadata.img:
+$(ATF_OUT_DIR)/metadata.img: | $(ANDROID_OUT_SRC_DIR)
 	@echo Create metadata.img
 	MKE2FS_CONFIG= $(MKE2FS) -t ext4 -F $@ -O has_journal,extent,huge_file,dir_nlink,extra_isize,uninit_bg 16m
 
