@@ -235,6 +235,7 @@ ANDROID_OUT_FILES := \
 
 ifneq (,$(ANDROID_BUILD_ARTIFACTS))
 # Unpack and use build artifacts if requested (e.g. for a chained build).
+$(info Using android ANDROID_BUILD_ARTIFACTS at $(ANDROID_BUILD_ARTIFACTS))
 
 ANDROID_OUT_SRC_DIR := $(BUILDDIR)/aosp/unpacked_android_artifacts
 
@@ -252,9 +253,11 @@ else ifneq (,$(ANDROID_BUILD_TOP))
 # We are building Trusty inside an Android environment,
 # which means we can use a fresh Android build instead of prebuilts
 ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
+$(info Using android ANDROID_BUILD_TOP at $(ANDROID_BUILD_TOP))
 else
 # Use unpacked prebuilt out dir if build artifacts are not specified and
 # ANDROID_BUILD_TOP was not set
+$(info Using android prebuilts)
 ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
 endif
 ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
