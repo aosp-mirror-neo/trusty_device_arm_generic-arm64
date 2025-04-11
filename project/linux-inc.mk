@@ -18,6 +18,7 @@
 # LINUX_ARCH contains the architecture to build for (Global)
 # ANDROID_HOST_BINDIR is the path to the Android host binaries
 # ANDROID_RAMDISK is the path to the Android ramdisk.img
+# KERNEL_BUILD_ARTIFACTS kernel artifacts location (Env)
 #
 # Outputs:
 # LINUX_BUILD_DIR contains the path to the built linux kernel sources
@@ -26,6 +27,28 @@
 
 # This Makefile will build the Linux kernel with our configuration.
 
+# Save the linux kernel paths in order to rebuild if they change.
+LINUX_BUILD_DIR_DEFINES := KERNEL_BUILD_ARTIFACTS=\"$(subst $(SPACE),_,$(KERNEL_BUILD_ARTIFACTS))\"
+
+LINUX_BUILD_DIR_CONFIG = $(BUILDDIR)/linux-build.config
+
+$(LINUX_BUILD_DIR_CONFIG): LINUX_BUILD_DIR_DEFINES := $(LINUX_BUILD_DIR_DEFINES)
+$(LINUX_BUILD_DIR_CONFIG): configheader
+	@$(call INFO_DONE,linux build dir,generating config file,$@)
+	@$(call MAKECONFIGHEADER,$@,LINUX_BUILD_DIR_DEFINES)
+
+ifneq (,$(KERNEL_BUILD_ARTIFACTS))
+# Use linux kernel build artifacts if requested (e.g. for a chained build).
+
+$(info Using linux kernel KERNEL_BUILD_ARTIFACTS at $(KERNEL_BUILD_ARTIFACTS))
+LINUX_PREBUILTS_IMAGE := $(KERNEL_BUILD_ARTIFACTS)/Image
+LINUX_PREBUILTS_MODULES_DIRS := \
+	$(KERNEL_BUILD_ARTIFACTS) \
+
+else
+# Use linux kernel prebuilts
+
+$(info Using linux kernel prebuilts)
 LINUX_PREBUILTS_VERSION := 6.12
 LINUX_PREBUILTS_IMAGE := \
 	kernel/prebuilts/${LINUX_PREBUILTS_VERSION}/${LINUX_ARCH}/kernel-${LINUX_PREBUILTS_VERSION}
@@ -33,6 +56,8 @@ LINUX_PREBUILTS_MODULES_DIRS := \
 	kernel/prebuilts/$(LINUX_PREBUILTS_VERSION)/arm64 \
 	kernel/prebuilts/common-modules/trusty/$(LINUX_PREBUILTS_VERSION)/arm64 \
 	kernel/prebuilts/common-modules/virtual-device/$(LINUX_PREBUILTS_VERSION)/arm64 \
+
+endif
 
 LINUX_BUILD_DIR := $(abspath $(BUILDDIR)/linux-build)
 ifndef LINUX_ARCH
@@ -60,7 +85,7 @@ $(LINUX_RAMDISK_IMAGE): $(LINUX_PREBUILTS_MODULES) $(LINUX_MODULES_LOAD) $(ANDRO
 	@cp -n -t $(LINUX_MODULES_STAGING_DIR) $(LINUX_PREBUILTS_MODULES)
 	PATH=$(EXTRA_PATHS):$(PATH) $(REPLACE_RAMDISK_MODULES) --android-ramdisk $(ANDROID_RAMDISK) --kernel-ramdisk $(LINUX_MODULES_STAGING_DIR) --output-ramdisk $@ --override-modules-load $(LINUX_MODULES_LOAD)
 
-$(LINUX_BUILD_DIR): $(LINUX_PREBUILTS_IMAGE)
+$(LINUX_BUILD_DIR): $(LINUX_PREBUILTS_IMAGE) $(LINUX_BUILD_DIR_CONFIG)
 	@echo copying Linux prebuilts
 	@rm -rf $@
 	@$(MKDIR)
@@ -72,6 +97,8 @@ $(LINUX_IMAGE): $(LINUX_BUILD_DIR)
 # Add LINUX_IMAGE to the list of project dependencies
 EXTRA_BUILDDEPS += $(LINUX_IMAGE) $(LINUX_RAMDISK_IMAGE)
 
+LINUX_BUILD_DIR_DEFINES :=
+LINUX_BUILD_DIR_CONFIG :=
 LINUX_MODULES_STAGING_DIR :=
 LINUX_MODULES_LOAD :=
 LINUX_PREBUILTS_MODULES :=
