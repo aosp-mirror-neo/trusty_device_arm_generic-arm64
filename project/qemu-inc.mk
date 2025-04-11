@@ -221,6 +221,7 @@ else
 # List of files we need from Android
 ANDROID_OUT_FILES := \
 	out/host/linux-x86/bin/adb \
+	out/host/linux-x86/bin/mkbootfs \
 	out/host/linux-x86/bin/mke2fs \
 	out/target/product/trusty/ramdisk.img \
 	out/target/product/trusty/system.img \
@@ -258,6 +259,7 @@ endif
 ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
 
 LINUX_ARCH ?= arm64
+ANDROID_HOST_BINDIR ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin
 ANDROID_RAMDISK ?= $(ANDROID_OUT_SRC_DIR)/out/target/product/trusty/ramdisk.img
 include project/linux-inc.mk
 endif # PACKAGE_TRUSTY_IMAGES_ONLY
@@ -472,6 +474,7 @@ QEMU_PACKAGE_ARCHIVE := $(BUILDDIR)/trusty_image_package.tar.gz
 include project/qemu-package-inc.mk
 endif
 
+ANDROID_HOST_BINDIR :=
 ANDROID_OUT_FILES :=
 ANDROID_OUT_BUILD_DIR :=
 ANDROID_OUT_BUILD_DIR_CONFIG :=
