@@ -206,15 +206,58 @@ $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV)
 	@echo Initialize rpmb device
 	$< --dev $(ATF_OUT_DIR)/RPMB_DATA --init --size 2048
 
+# Save the android src paths in order to rebuild the world if they change.
+ANDROID_OUT_BUILD_DIR_DEFINES := ANDROID_BUILD_ARTIFACTS=\"$(subst $(SPACE),_,$(ANDROID_BUILD_ARTIFACTS))\"
+ANDROID_OUT_BUILD_DIR_DEFINES += ANDROID_BUILD_TOP=\"$(subst $(SPACE),_,$(ANDROID_BUILD_TOP))\"
+
+ANDROID_OUT_BUILD_DIR_CONFIG = $(BUILDDIR)/aosp/android.config
+
+$(ANDROID_OUT_BUILD_DIR_CONFIG): ANDROID_OUT_BUILD_DIR_DEFINES := $(ANDROID_OUT_BUILD_DIR_DEFINES)
+$(ANDROID_OUT_BUILD_DIR_CONFIG): configheader
+	@$(call INFO_DONE,android build,generating config file,$@)
+	@$(call MAKECONFIGHEADER,$@,ANDROID_OUT_BUILD_DIR_DEFINES)
+
 ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
 ANDROID_OUT_SRC_DIR :=
 ANDROID_OUT_SRC_FILES :=
+ANDROID_OUT_FILES :=
 else
-ifneq (,$(ANDROID_BUILD_TOP))
+
+# List of files we need from Android
+ANDROID_OUT_FILES := \
+	out/host/linux-x86/bin/adb \
+	out/host/linux-x86/bin/mke2fs \
+	out/target/product/trusty/ramdisk.img \
+	out/target/product/trusty/system.img \
+	out/target/product/trusty/vendor.img \
+	out/target/product/trusty/userdata.img \
+	out/target/product/trusty/data/nativetest64 \
+
+ifneq (,$(ANDROID_BUILD_ARTIFACTS))
+# Unpack and use build artifacts if requested (e.g. for a chained build).
+$(info Using android ANDROID_BUILD_ARTIFACTS at $(ANDROID_BUILD_ARTIFACTS))
+
+ANDROID_OUT_SRC_DIR := $(BUILDDIR)/aosp/unpacked_android_artifacts
+
+# TODO: The result here gets copied to ANDROID_OUT_BUILD_DIR later. It might
+# be simpler to run the unpack script in the prebuilt case as well and skip
+# the extra copy step.
+ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
+$(ANDROID_OUT_SRC_DIR) $(ANDROID_OUT_SRC_FILES) &: ANDROID_OUT_SRC_DIR := $(ANDROID_OUT_SRC_DIR)
+$(ANDROID_OUT_SRC_DIR) $(ANDROID_OUT_SRC_FILES) &: $(ANDROID_BUILD_ARTIFACTS) $(ANDROID_OUT_BUILD_DIR_CONFIG)
+	@echo unpacking $< to $(ANDROID_OUT_SRC_DIR)
+	@rm -rf $(ANDROID_OUT_SRC_DIR)
+	trusty/prebuilts/aosp/unpack.py -o $(ANDROID_OUT_SRC_DIR) -a $<
+
+else ifneq (,$(ANDROID_BUILD_TOP))
 # We are building Trusty inside an Android environment,
 # which means we can use a fresh Android build instead of prebuilts
 ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
+$(info Using android ANDROID_BUILD_TOP at $(ANDROID_BUILD_TOP))
 else
+# Use unpacked prebuilt out dir if build artifacts are not specified and
+# ANDROID_BUILD_TOP was not set
+$(info Using android prebuilts)
 ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
 endif
 ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
@@ -222,7 +265,7 @@ endif
 
 MKE2FS ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin/mke2fs
 $(ATF_OUT_DIR)/metadata.img: MKE2FS := $(MKE2FS)
-$(ATF_OUT_DIR)/metadata.img:
+$(ATF_OUT_DIR)/metadata.img: | $(ANDROID_OUT_SRC_DIR)
 	@echo Create metadata.img
 	MKE2FS_CONFIG= $(MKE2FS) -t ext4 -F $@ -O has_journal,extent,huge_file,dir_nlink,extra_isize,uninit_bg 16m
 
@@ -293,21 +336,6 @@ $(PY3_CMD): $(BUILDTOOLS_BINDIR)/py3-cmd
 
 EXTRA_BUILDDEPS += $(PY3_CMD)
 
-# List of files we need from Android
-ifeq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
-ANDROID_OUT_FILES :=
-
-else
-ANDROID_OUT_FILES := \
-	out/host/linux-x86/bin/adb \
-	out/host/linux-x86/bin/mke2fs \
-	out/target/product/trusty/ramdisk.img \
-	out/target/product/trusty/system.img \
-	out/target/product/trusty/vendor.img \
-	out/target/product/trusty/userdata.img \
-	out/target/product/trusty/data/nativetest64 \
-
-endif
 # Copy Android prebuilts into the build directory so that the build does not
 # depend on any files in the source tree. We want to package the build artifacts
 # without any dependencies on the sources.
@@ -334,7 +362,7 @@ $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_IMAGE_DIR := $(ANDROID_OUT_IMAGE_DIR)
 $(ANDROID_OUT_BUILD_DIR): ANDROID_OUT_FILES := $(ANDROID_OUT_FILES)
 $(ANDROID_OUT_BUILD_DIR): LINUX_RAMDISK_IMAGE := $(LINUX_RAMDISK_IMAGE)
 $(ANDROID_OUT_BUILD_DIR): RAMDISK_CP := $(if $(LINUX_RAMDISK_IMAGE),cp,/bin/true)
-$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES) $(LINUX_RAMDISK_IMAGE)
+$(ANDROID_OUT_BUILD_DIR): $(ANDROID_OUT_SRC_FILES) $(LINUX_RAMDISK_IMAGE) $(ANDROID_OUT_BUILD_DIR_CONFIG)
 	@echo creating Android output directory
 	@rm -rf $@
 	@mkdir -p $@
@@ -447,6 +475,8 @@ endif
 
 ANDROID_OUT_FILES :=
 ANDROID_OUT_BUILD_DIR :=
+ANDROID_OUT_BUILD_DIR_CONFIG :=
+ANDROID_OUT_BUILD_DIR_DEFINES :=
 ANDROID_OUT_SRC_DIR :=
 ANDROID_OUT_SRC_FILES :=
 ATF_BIN :=
