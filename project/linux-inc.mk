@@ -16,6 +16,8 @@
 
 # Inputs:
 # LINUX_ARCH contains the architecture to build for (Global)
+# ANDROID_RAMDISK is the path to the Android ramdisk.img
+#
 # Outputs:
 # LINUX_BUILD_DIR contains the path to the built linux kernel sources
 # LINUX_IMAGE path of the final linux image target
@@ -45,7 +47,7 @@ $(LINUX_RAMDISK_IMAGE): LINUX_MODULES_STAGING_DIR := $(LINUX_MODULES_STAGING_DIR
 $(LINUX_RAMDISK_IMAGE): LINUX_TRUSTY_MODULES_MAKEFILE_DIR := $(LINUX_TRUSTY_MODULES_COPY_DIR)/drivers/trusty
 $(LINUX_RAMDISK_IMAGE): TRUSTY_MODULES_ORDER_HASH := $(shell echo "${LINUX_TRUSTY_MODULES_MAKEFILE_DIR}" | $(PATH_TOOLS_BINDIR)/md5sum -b)
 $(LINUX_RAMDISK_IMAGE): REPLACE_RAMDISK_MODULES := $(PY3) trusty/host/common/scripts/replace_ramdisk_modules/replace_ramdisk_modules.py
-$(LINUX_RAMDISK_IMAGE): ANDROID_RAMDISK := trusty/prebuilts/aosp/android/out/target/product/trusty/ramdisk.img
+$(LINUX_RAMDISK_IMAGE): ANDROID_RAMDISK := $(ANDROID_RAMDISK)
 $(LINUX_RAMDISK_IMAGE): LINUX_MODULES_LOAD := $(LINUX_MODULES_LOAD)
 $(LINUX_RAMDISK_IMAGE): $(LINUX_IMAGE) $(LINUX_TRUSTY_MODULES_COPY_FILES) $(LINUX_TRUSTY_MODULES_KCONFIG_EXT) $(LINUX_MODULES_LOAD)
 	@echo building Linux ramdisk
