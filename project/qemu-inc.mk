@@ -155,11 +155,6 @@ $(QEMU_BIN): $(QEMU_BUILD_BASE)
 EXTRA_BUILDDEPS += $(QEMU_BUILD_BASE) $(QEMU_BIN)
 endif
 
-ifneq (true,$(call TOBOOL,$(PACKAGE_TRUSTY_IMAGES_ONLY)))
-LINUX_ARCH ?= arm64
-include project/linux-inc.mk
-endif
-
 RUN_SCRIPT := $(BUILDDIR)/run
 STOP_SCRIPT := $(BUILDDIR)/stop
 ALLOC_ADB_PORTS_PY := $(BUILDDIR)/alloc_adb_ports.py
@@ -226,6 +221,7 @@ else
 # List of files we need from Android
 ANDROID_OUT_FILES := \
 	out/host/linux-x86/bin/adb \
+	out/host/linux-x86/bin/mkbootfs \
 	out/host/linux-x86/bin/mke2fs \
 	out/target/product/trusty/ramdisk.img \
 	out/target/product/trusty/system.img \
@@ -261,7 +257,12 @@ $(info Using android prebuilts)
 ANDROID_OUT_SRC_DIR := trusty/prebuilts/aosp/android
 endif
 ANDROID_OUT_SRC_FILES := $(addprefix $(ANDROID_OUT_SRC_DIR)/,$(ANDROID_OUT_FILES))
-endif
+
+LINUX_ARCH ?= arm64
+ANDROID_HOST_BINDIR ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin
+ANDROID_RAMDISK ?= $(ANDROID_OUT_SRC_DIR)/out/target/product/trusty/ramdisk.img
+include project/linux-inc.mk
+endif # PACKAGE_TRUSTY_IMAGES_ONLY
 
 MKE2FS ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin/mke2fs
 $(ATF_OUT_DIR)/metadata.img: MKE2FS := $(MKE2FS)
@@ -473,12 +474,14 @@ QEMU_PACKAGE_ARCHIVE := $(BUILDDIR)/trusty_image_package.tar.gz
 include project/qemu-package-inc.mk
 endif
 
+ANDROID_HOST_BINDIR :=
 ANDROID_OUT_FILES :=
 ANDROID_OUT_BUILD_DIR :=
 ANDROID_OUT_BUILD_DIR_CONFIG :=
 ANDROID_OUT_BUILD_DIR_DEFINES :=
 ANDROID_OUT_SRC_DIR :=
 ANDROID_OUT_SRC_FILES :=
+ANDROID_RAMDISK :=
 ATF_BIN :=
 ATF_BUILD_BASE :=
 ATF_EXTRA_BINS :=

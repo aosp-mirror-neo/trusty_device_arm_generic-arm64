@@ -16,15 +16,23 @@
 
 # Inputs:
 # LINUX_ARCH contains the architecture to build for (Global)
+# ANDROID_HOST_BINDIR is the path to the Android host binaries
+# ANDROID_RAMDISK is the path to the Android ramdisk.img
+#
 # Outputs:
 # LINUX_BUILD_DIR contains the path to the built linux kernel sources
 # LINUX_IMAGE path of the final linux image target
+# LINUX_RAMDISK_IMAGE path of the final ramdisk image
 
 # This Makefile will build the Linux kernel with our configuration.
 
 LINUX_PREBUILTS_VERSION := 6.12
 LINUX_PREBUILTS_IMAGE := \
 	kernel/prebuilts/${LINUX_PREBUILTS_VERSION}/${LINUX_ARCH}/kernel-${LINUX_PREBUILTS_VERSION}
+LINUX_PREBUILTS_MODULES_DIRS := \
+	kernel/prebuilts/$(LINUX_PREBUILTS_VERSION)/arm64 \
+	kernel/prebuilts/common-modules/trusty/$(LINUX_PREBUILTS_VERSION)/arm64 \
+	kernel/prebuilts/common-modules/virtual-device/$(LINUX_PREBUILTS_VERSION)/arm64 \
 
 LINUX_BUILD_DIR := $(abspath $(BUILDDIR)/linux-build)
 ifndef LINUX_ARCH
@@ -32,30 +40,25 @@ ifndef LINUX_ARCH
 endif
 
 LINUX_IMAGE := $(LINUX_BUILD_DIR)/arch/$(LINUX_ARCH)/boot/Image
-LINUX_RAMDISK_IMAGE :=
 LINUX_MODULES_LOAD := $(TRUSTY_TOP)/trusty/device/arm/generic-arm64/project/linux/modules.load
-ifeq (0,1) # Disabled temporarily
 LINUX_MODULES_STAGING_DIR := $(abspath $(BUILDDIR)/linux-modules-staging)
 LINUX_RAMDISK_IMAGE := $(abspath $(BUILDDIR)/ramdisk.img)
+LINUX_PREBUILTS_MODULES := \
+	$(foreach d,$(LINUX_PREBUILTS_MODULES_DIRS),$(wildcard $(d)/*.ko))
 
 # Put all the paths prepended to $PATH in one variable
-$(LINUX_IMAGE) $(LINUX_RAMDISK_IMAGE): EXTRA_PATHS := $(CLANG_BINDIR):$(PATH_TOOLS_BINDIR):$(BUILDTOOLS_BINDIR):$(LINUX_BUILD_TOOLS)/bin
-
+$(LINUX_RAMDISK_IMAGE): EXTRA_PATHS := $(PATH_TOOLS_BINDIR):$(BUILDTOOLS_BINDIR):$(LINUX_BUILD_TOOLS)/bin:$(ANDROID_HOST_BINDIR)
 $(LINUX_RAMDISK_IMAGE): LINUX_MODULES_STAGING_DIR := $(LINUX_MODULES_STAGING_DIR)
-$(LINUX_RAMDISK_IMAGE): LINUX_TRUSTY_MODULES_MAKEFILE_DIR := $(LINUX_TRUSTY_MODULES_COPY_DIR)/drivers/trusty
-$(LINUX_RAMDISK_IMAGE): TRUSTY_MODULES_ORDER_HASH := $(shell echo "${LINUX_TRUSTY_MODULES_MAKEFILE_DIR}" | $(PATH_TOOLS_BINDIR)/md5sum -b)
 $(LINUX_RAMDISK_IMAGE): REPLACE_RAMDISK_MODULES := $(PY3) trusty/host/common/scripts/replace_ramdisk_modules/replace_ramdisk_modules.py
-$(LINUX_RAMDISK_IMAGE): ANDROID_RAMDISK := trusty/prebuilts/aosp/android/out/target/product/trusty/ramdisk.img
+$(LINUX_RAMDISK_IMAGE): ANDROID_RAMDISK := $(ANDROID_RAMDISK)
 $(LINUX_RAMDISK_IMAGE): LINUX_MODULES_LOAD := $(LINUX_MODULES_LOAD)
-$(LINUX_RAMDISK_IMAGE): $(LINUX_IMAGE) $(LINUX_TRUSTY_MODULES_COPY_FILES) $(LINUX_TRUSTY_MODULES_KCONFIG_EXT) $(LINUX_MODULES_LOAD)
+$(LINUX_RAMDISK_IMAGE): LINUX_PREBUILTS_MODULES := $(LINUX_PREBUILTS_MODULES)
+$(LINUX_RAMDISK_IMAGE): $(LINUX_PREBUILTS_MODULES) $(LINUX_MODULES_LOAD)
 	@echo building Linux ramdisk
 	@rm -rf $(LINUX_MODULES_STAGING_DIR)
-	PATH=$(EXTRA_PATHS):$(PATH) $(MAKE) $(LINUX_MAKE_ARGS) modules_install
-	PATH=$(EXTRA_PATHS):$(PATH) $(MAKE) $(LINUX_MAKE_ARGS) M=$(LINUX_TRUSTY_MODULES_MAKEFILE_DIR) modules
-	PATH=$(EXTRA_PATHS):$(PATH) $(MAKE) $(LINUX_MAKE_ARGS) M=$(LINUX_TRUSTY_MODULES_MAKEFILE_DIR) modules_install
-	PATH=$(EXTRA_PATHS):$(PATH) $(REPLACE_RAMDISK_MODULES) --android-ramdisk $(ANDROID_RAMDISK) --kernel-ramdisk $(LINUX_MODULES_STAGING_DIR) --output-ramdisk $@ --override-modules-load $(LINUX_MODULES_LOAD) --check-modules-order --extra-modules-order "modules.order.$(TRUSTY_MODULES_ORDER_HASH)"
-
-endif # Disabled
+	@mkdir -p $(LINUX_MODULES_STAGING_DIR)
+	@cp -n -t $(LINUX_MODULES_STAGING_DIR) $(LINUX_PREBUILTS_MODULES)
+	PATH=$(EXTRA_PATHS):$(PATH) $(REPLACE_RAMDISK_MODULES) --android-ramdisk $(ANDROID_RAMDISK) --kernel-ramdisk $(LINUX_MODULES_STAGING_DIR) --output-ramdisk $@ --override-modules-load $(LINUX_MODULES_LOAD)
 
 $(LINUX_BUILD_DIR): $(LINUX_PREBUILTS_IMAGE)
 	@echo copying Linux prebuilts
@@ -71,3 +74,5 @@ EXTRA_BUILDDEPS += $(LINUX_IMAGE) $(LINUX_RAMDISK_IMAGE)
 
 LINUX_MODULES_STAGING_DIR :=
 LINUX_MODULES_LOAD :=
+LINUX_PREBUILTS_MODULES :=
+LINUX_PREBUILTS_MODULES_DIRS :=
