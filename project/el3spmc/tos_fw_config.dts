@@ -19,6 +19,7 @@
 	uuid = <0xf025ee40 0x4c30bca2 0x73a14c8c 0xf18a7dc5>,
 	       <0x9120b8c5 0xbb48fed4 0x244de7b7 0xbe28bb6e>;
 	messaging-method = <0x00000201>; /* Can receive SEND_DIRECT_REQ/DIRECT_REQ2 only */
+	vm-availability-messages = <3>;
 	exception-level = <S_EL1>;
 	execution-state = <0>;
 	execution-ctx-count = <32>; /* Must match PLATFORM_CORE_COUNT */
