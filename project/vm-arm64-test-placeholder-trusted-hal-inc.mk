@@ -27,13 +27,15 @@ STORAGE_ENABLE_ERROR_REPORTING ?= true
 STORAGE_AIDL_ENABLED ?= true
 TRUSTY_VM_INCLUDE_SECURE_STORAGE_HAL ?= true
 AUTHMGRFE_MODE_INSECURE ?= true
+AUTHMGRFE_FAKE_DICE_CHAIN ?= true
+# Fake DICE chains require test builds
+TEST_BUILD := true
 
 include project/vm-arm64-test-inc.mk
 
 TRUSTY_BUILTIN_USER_TASKS += \
 	trusty/user/app/authmgr/authmgr-be/app \
 	trusty/user/app/sample/hwaes \
-	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
 	trusty/user/app/sample/hwcryptohal/server/app \
 	trusty/user/app/sample/hwwsk \
