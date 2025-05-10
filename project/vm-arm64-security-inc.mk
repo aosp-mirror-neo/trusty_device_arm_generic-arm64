@@ -25,6 +25,7 @@ TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/gatekeeper \
 	trusty/user/app/keymint/app \
+	trusty/user/app/keymint/vm/commservice/app \
 	trusty/user/base/app/device_tree \
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
