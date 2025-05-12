@@ -47,8 +47,3 @@ TRUSTY_ALL_USER_TASKS += \
 	trusty/user/base/app/line-coverage \
 
 endif
-
-# TODO: b/377906851 - remove once authmgr-fe supports secure mode
-AUTHMGRFE_MODE_INSECURE ?= true
-# TODO: b/390627104 - remove once we are using a DICE handover provided by the kernel
-AUTHMGRFE_FAKE_DICE_CHAIN ?= true
