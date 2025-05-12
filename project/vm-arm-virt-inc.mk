@@ -35,6 +35,13 @@ USE_SYSTEM_BINDER := true
 # version.
 DICE_PROFILE_FOR_OPEN_DICE := android
 
+# When running trusty as a VM guest, it's likely we'll
+# want the DICE handover passed into user space. This
+# is only relevant for protected VMs, but fails
+# gracefully if the handover is not present in the
+# device tree, so we set it for all VM projects.
+MAP_RESERVED_MEM_FROM_DT ?= true
+
 include project/generic-arm-virt-inc.mk
 include project/generic-arm-tz-inc.mk
 

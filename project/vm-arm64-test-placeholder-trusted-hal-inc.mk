@@ -26,8 +26,7 @@ WITH_HKDF_RPMB_KEY ?= true
 STORAGE_ENABLE_ERROR_REPORTING ?= true
 STORAGE_AIDL_ENABLED ?= true
 TRUSTY_VM_INCLUDE_SECURE_STORAGE_HAL ?= true
-AUTHMGRFE_FAKE_DICE_CHAIN ?= true
-# Fake DICE chains require test builds
+
 TEST_BUILD := true
 
 include project/vm-arm64-test-inc.mk
