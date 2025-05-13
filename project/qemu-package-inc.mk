@@ -79,7 +79,7 @@ $(QEMU_PACKAGE_ARCHIVE): $(QEMU_PACKAGE_FILES)
 	@$(MKDIR)
 	@echo Creating QEMU archive package
 	$(NOECHO)rm -f $@
-	$(NOECHO)(cd $(BUILDDIR) && tar --dereference -c -z -f $@ $(subst $(BUILDDIR)/,,$^) $(subst $(BUILDDIR)/,,$(QEMU_PACKAGE_EXTRA_FILES)))
+	$(NOECHO)(cd $(BUILDDIR) && tar -c -z -f $@ $(subst $(BUILDDIR)/,,$^) $(subst $(BUILDDIR)/,,$(QEMU_PACKAGE_EXTRA_FILES)))
 
 else
 $(error QEMU_PACKAGE_ARCHIVE must end in either .zip or .tar.gz)
