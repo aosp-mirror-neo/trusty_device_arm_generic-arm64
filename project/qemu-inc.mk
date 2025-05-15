@@ -185,12 +185,12 @@ ATF_SYMLINKS := \
 $(ATF_OUT_DIR)/bl32.bin: BUILDDIR := $(BUILDDIR)
 $(ATF_OUT_DIR)/bl32.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl32.bin: $(BL32_BIN) $(ATF_OUT_DIR)
-	$(NOECHO)ln -rsf $< $@
+	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
 $(ATF_OUT_DIR)/bl33.bin: BUILDDIR := $(BUILDDIR)
 $(ATF_OUT_DIR)/bl33.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR)
-	$(NOECHO)ln -rsf $< $@
+	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
 ATF_GENERATED_FILES := \
 	$(ATF_OUT_DIR)/RPMB_DATA \
@@ -409,7 +409,7 @@ EXTRA_BUILDDEPS += $(QEMU_CONFIG)
 # preserve backwards compatibility.
 $(RUN_SCRIPT): $(RUN_PY)
 	@echo creating $@
-	@ln -sf $(abspath $<) $@
+	@$(PATH_TOOLS_BINDIR)/ln -sf $(abspath $<) $@
 
 EXTRA_BUILDDEPS += $(RUN_SCRIPT)
 
