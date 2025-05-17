@@ -34,7 +34,6 @@ include project/vm-arm64-security-inc.mk
 TRUSTY_BUILTIN_USER_TASKS += \
 	trusty/user/app/authmgr/authmgr-be/app \
 	trusty/user/app/sample/hwaes \
-	trusty/user/app/sample/hwbcc \
 	trusty/user/app/sample/hwcrypto \
 	trusty/user/app/sample/hwcryptohal/server/app \
 	trusty/user/app/sample/hwwsk \

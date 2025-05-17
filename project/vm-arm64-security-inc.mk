@@ -23,6 +23,7 @@ TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 
 # compiled from source
 TRUSTY_BUILTIN_USER_TASKS := \
+	trusty/user/app/authmgr/authmgr-fe/app \
 	trusty/user/app/gatekeeper \
 	trusty/user/app/keymint/app \
 	trusty/user/app/keymint/vm/commservice/app \
