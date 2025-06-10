@@ -35,6 +35,8 @@ include project/vm-arm-virt-test-inc.mk
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/base/app/apploader \
 	trusty/user/app/authmgr/authmgr-fe/app \
+	trusty/user/app/authmgr/authmgr-be/app \
+	trusty/user/app/sample/hwcrypto \
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
 TRUSTY_ALL_USER_TASKS += \
