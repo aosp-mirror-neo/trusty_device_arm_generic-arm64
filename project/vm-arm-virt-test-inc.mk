@@ -13,6 +13,13 @@
 # limitations under the License.
 #
 
+
+USE_SYSTEM_BINDER := true
+DICE_PROFILE_FOR_OPEN_DICE := android
+MAP_RESERVED_MEM_FROM_DT := true
+WITH_FAKE_HWRNG ?= true
+WITH_FAKE_HWKEY ?= true
+WITH_FAKE_KEYBOX ?= true
+
 include project/generic-arm-virt-inc.mk
 include project/generic-arm-tz-test-inc.mk
-
