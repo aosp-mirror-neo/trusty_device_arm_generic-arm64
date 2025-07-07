@@ -22,6 +22,7 @@
     xlat-granule = <0>; /* 4KiB */
 
     messaging-method = <0x00000201>; /* DIRECT_REQ and DIRECT_REQ2 message receive only */
+    vm-availability-messages = <3>;
 
     ns-interrupts-action = <1>; /* Managed exit is supported */
     /* Trusty reschedules the current thread on an IRQ but not a FIQ */
