@@ -60,6 +60,17 @@ TIMER_ARM_GENERIC_SELECTED ?= CNTPS
 endif
 GLOBAL_DEFINES += TIMER_ARM_GENERIC_SELECTED=$(TIMER_ARM_GENERIC_SELECTED)
 
+ifeq ($(GIC_VERSION),2)
+# Use group 0 for secure interrupts and the doorbell on QEMU with GICv2
+ARM_GIC_SELECTED_IRQ_GROUP ?= GRP0S
+GLOBAL_DEFINES += ARM_GIC_SELECTED_IRQ_GROUP=$(ARM_GIC_SELECTED_IRQ_GROUP)
+
+ifeq ($(ARM_GIC_SELECTED_IRQ_GROUP),GRP0S)
+# We get group 0 interrupts as FIQs but they're actually IRQs so merge them
+ARM_MERGE_FIQ_IRQ := true
+endif # ARM_GIC_SELECTED_IRQ_GROUP
+endif # GIC_VERSION
+
 #
 # GLOBAL definitions
 #
