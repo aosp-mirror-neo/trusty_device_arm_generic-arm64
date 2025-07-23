@@ -26,11 +26,13 @@ class QemuDrive:
         index: int,
         dir_name: str,
         read_only: bool = True,
+        persistent: bool = False,
         ext: str = ".img",
     ):
         self.name = name
         self.index = index
         self.read_only = read_only
+        self.persistent = persistent
         self.ext = ext
         self.img_path = self.path(pathlib.Path(dir_name))
         if not os.path.exists(self.img_path):
@@ -52,8 +54,11 @@ class QemuDrive:
         if not os.path.exists(path):
             shutil.copy(self.img_path, path)
 
-    def delete_image_changes(self, instance_dir: os.PathLike):
+    def delete_image_changes(self, instance_dir: os.PathLike, full_wipe: bool):
         if self.read_only:
+            return
+
+        if self.persistent and not full_wipe:
             return
 
         try:
@@ -202,9 +207,9 @@ class QemuArm64Options(object):
         for drive in self.drives():
             drive.ensure_image_exists(self.instance_dir)
 
-    def delete_drives_data(self):
+    def delete_drives_data(self, full_wipe: bool):
         for drive in self.drives():
-            drive.delete_image_changes(self.instance_dir)
+            drive.delete_image_changes(self.instance_dir, full_wipe)
 
     def android_drives_args(self):
         """Generates arguments for mapping all default drives"""
