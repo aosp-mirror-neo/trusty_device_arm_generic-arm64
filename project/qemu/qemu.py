@@ -1060,7 +1060,7 @@ class Runner(object):
         # it notices the runner is down, but that test doesn't have the
         # RebootMode info from the reboot.)
         if factory_reset:
-            self.qemu_arch_options.delete_drives_data()
+            self.qemu_arch_options.delete_drives_data(full_wipe)
         if full_wipe:
             assert factory_reset, (
                 "Cannot perform a full wipe without factory resetting.")
