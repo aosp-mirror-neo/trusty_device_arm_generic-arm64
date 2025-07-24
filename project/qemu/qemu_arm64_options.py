@@ -136,6 +136,17 @@ class QemuArm64Options(object):
             return self.config.initrd
         return self.config.android_image_dir + "/ramdisk.img"
 
+    def get_linux_args(self):
+        # The vport device names in linux change depending on how many virtio
+        # block devices we have. Pass a bootparamter to linux with a computed
+        # name so we can add drives without updating the android side at the
+        # same time.
+        # We only pass the base name here, not each vport, since the selinux
+        # rules still assign labels to the vport based on a hardcoded suffix.
+        vport_num = len(self.drives())
+
+        return self.LINUX_ARGS + f" androidboot.qemu.vport=vport{vport_num}"
+
     def initrd_dts(self):
         file_stats = os.stat(self.get_initrd_filename())
         start_addr = 0x48000000
@@ -245,7 +256,7 @@ class QemuArm64Options(object):
             kernel,
             "-initrd",
             self.get_initrd_filename(),
-            "-append", self.LINUX_ARGS
+            "-append", self.get_linux_args()
         ]
 
     def android_trusty_user_data(self):
