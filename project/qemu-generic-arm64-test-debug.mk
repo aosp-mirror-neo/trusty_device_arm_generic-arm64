@@ -21,5 +21,8 @@ KERNEL_BTI_ENABLED ?= true
 # D-cache lines are 64 bytes on QEMU arm64
 GLOBAL_DEFINES += CACHE_LINE=64
 
+# Disable TDP for one qemu build
+STORAGE_HAS_FS_TDP := false
+
 include project/debugging-inc.mk
 include project/qemu-inc.mk

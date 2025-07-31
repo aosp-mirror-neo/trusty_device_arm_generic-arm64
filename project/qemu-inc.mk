@@ -58,6 +58,9 @@ APP_TIMERTEST_MAX_CLOCK_PERIOD := 2000
 # Derive RPMB key using HKDF
 WITH_HKDF_RPMB_KEY ?= true
 
+# Enable TDP for qemu builds by default
+STORAGE_HAS_FS_TDP ?= true
+
 # Always allow provisioning for emulator builds
 STATIC_SYSTEM_STATE_FLAG_PROVISIONING_ALLOWED := 1
 
