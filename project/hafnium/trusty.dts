@@ -25,6 +25,7 @@
     vm-availability-messages = <3>;
 
     ns-interrupts-action = <1>; /* Managed exit is supported */
+    sri-interrupts-policy = <3>; /* Trigger SRI on interrupts */
     /* Trusty reschedules the current thread on an IRQ but not a FIQ */
     managed-exit-virq;
 
