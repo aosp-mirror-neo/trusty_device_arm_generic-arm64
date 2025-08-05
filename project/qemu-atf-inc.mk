@@ -69,6 +69,8 @@ ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=1
 ATF_MAKE_ARGS += SP_LAYOUT_FILE=$(LK_BIN_DIR)/sp_layout.json
 ATF_MAKE_ARGS += QEMU_TOS_FW_CONFIG_DTS=$(HAFNIUM_PROJECT_DIR)/tos_fw_config.dts
 ATF_MAKE_ARGS += QEMU_TB_FW_CONFIG_DTS=$(HAFNIUM_PROJECT_DIR)/tb_fw_config.dts
+# Hafnium saves and restores the FP and SVE registers itself
+ATF_MAKE_ARGS += CTX_INCLUDE_FPREGS=0
 
 # Symlink the Hafnium DTBs to where qemu will look for them.
 HAFNIUM_DTBS := tb_fw_config.dtb tos_fw_config.dtb
@@ -106,9 +108,11 @@ ATF_MAKE_ARGS += QEMU_TOS_FW_CONFIG_DTS=$(EL3SPMC_TOS_FW_CONFIG_DTS)
 # builds the TSP as the BL32 payload. The variable is not used for anything,
 # so it can be a placeholder.
 ATF_MAKE_ARGS += BL32=/dev/null
+ATF_MAKE_ARGS += CTX_INCLUDE_FPREGS=1
 else
 ATF_MAKE_ARGS := SPD=trusty
 ATF_MAKE_ARGS += SPMD_SPM_AT_SEL2=0
+ATF_MAKE_ARGS += CTX_INCLUDE_FPREGS=1
 endif
 ATF_MAKE_ARGS += CC=$(CLANG_BINDIR)/clang
 ATF_MAKE_ARGS += DTC=$(TRUSTY_TOP)/prebuilts/misc/linux-x86/dtc/dtc
@@ -118,7 +122,6 @@ ATF_MAKE_ARGS += PLAT=$(ATF_PLAT)
 ATF_MAKE_ARGS += DEBUG=$(ATF_DEBUG)
 ATF_MAKE_ARGS += BUILD_BASE=$(ATF_BUILD_BASE)
 ATF_MAKE_ARGS += QEMU_USE_GIC_DRIVER=QEMU_GICV$(GIC_VERSION)
-ATF_MAKE_ARGS += CTX_INCLUDE_FPREGS=1
 # On aarch32, we skip EL2, see 27d8e1e75a2f45d7c23
 ifeq (true,$(call TOBOOL,$(KERNEL_32BIT)))
 ATF_MAKE_ARGS += INIT_UNUSED_NS_EL2=1
