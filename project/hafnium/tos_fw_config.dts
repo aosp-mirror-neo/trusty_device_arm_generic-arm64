@@ -66,6 +66,17 @@
             load_address = <0x10000000>;
             vcpu_count = <32>;
             mem_size = <0x20000000>;
+            /*
+             * Allow the Trusty SP to make some SMCs into EL3:
+             * * Trusty needs the TRNG calls for KASLR and crypto
+             */
+            smc_whitelist = <
+                0x84000050
+                0x84000051
+                0x84000052
+                0x84000053
+                0xc4000053
+            >;
         };
     };
 };
