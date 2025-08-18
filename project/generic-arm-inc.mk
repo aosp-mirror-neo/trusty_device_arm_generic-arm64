@@ -154,7 +154,12 @@ MODULES += \
 	trusty/kernel/lib/trusty \
 	trusty/kernel/lib/metrics \
 	trusty/kernel/services/apploader \
+
+ifeq (false,$(call TOBOOL,$(TRUSTY_VM_GUEST)))
+MODULES += \
 	trusty/kernel/services/smc \
+
+endif
 
 # Add lib/sm by default but allow building without it
 LIB_SM_ENABLED ?= true
