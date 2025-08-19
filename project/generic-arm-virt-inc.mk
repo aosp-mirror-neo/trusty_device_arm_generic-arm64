@@ -38,3 +38,6 @@ MMIO_GUARD_ENABLED ?= true
 
 TRUSTY_VM_GUEST := true
 GLOBAL_DEFINES += TRUSTY_VM_GUEST=1
+
+# Protected VMs require using hvc as the ARM SMCCC conduit
+ARM_SMCCC_CONDUIT_IS_HVC := true
