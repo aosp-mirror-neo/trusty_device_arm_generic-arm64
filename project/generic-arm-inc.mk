@@ -154,11 +154,11 @@ MODULES += \
 	trusty/kernel/lib/trusty \
 	trusty/kernel/lib/metrics \
 	trusty/kernel/services/apploader \
+	trusty/kernel/services/hwrng \
 
 ifeq (false,$(call TOBOOL,$(TRUSTY_VM_GUEST)))
 MODULES += \
 	trusty/kernel/services/smc \
-	trusty/kernel/services/hwrng \
 
 endif
 
