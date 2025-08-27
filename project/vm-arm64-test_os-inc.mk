@@ -34,18 +34,4 @@ include project/vm-arm-virt-test-inc.mk
 # disabling apploader service and rebalancing loadable test as builtin tests
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/base/app/apploader \
-	trusty/user/app/authmgr/authmgr-fe/app \
-	trusty/user/app/authmgr/authmgr-be/app \
-	trusty/user/app/sample/hwcrypto \
 
-ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
-TRUSTY_ALL_USER_TASKS += \
-	trusty/user/base/app/coverage \
-
-endif
-
-ifeq (true,$(call TOBOOL,$(UNITTEST_COVERAGE_ENABLED)))
-TRUSTY_ALL_USER_TASKS += \
-	trusty/user/base/app/line-coverage \
-
-endif

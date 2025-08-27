@@ -40,36 +40,9 @@ TRUSTY_RUST_USER_TESTS := \
 	trusty/user/app/storage/test/storage-unittest-aidl/ns \
 	trusty/user/app/authmgr/authmgr-be/lib \
 
-# the test-vm does not include any TAs by default
-# (except for the test TAs that are included by virt-test-inc.mk)
-#
-# tests in Trusty are mostly declared as TRUSTY_LOADABLE_USER_TESTS,
-# they also are included by default as builtin apps
-# (unless the top-level makefile initializes TRUSTY_BUILTIN_USER_TESTS,
-#  see documentation in trusty/kernel/app/trusty/user-tasks.mk)
-#
-# for virt payload, loadable TAs are generally not applicable
-# (apploader interface is not a stable ABI yet).
-# So apploader should generally be disabled.
-#
-# the Trusty build system however makes it complicated to disable
-# apploader service while still declaring tests as loadable.
-# as a short-term workaround, the test-vm will include apploader service
-# TODO(b/) evolve `trusty/kernel/app/trusty/user-tasks.mk` to support
-# disabling apploader service and rebalancing loadable test as builtin tests
+
 TRUSTY_BUILTIN_USER_TASKS := \
-	trusty/user/base/app/apploader \
 	trusty/user/app/authmgr/authmgr-fe/app \
-
-ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
-TRUSTY_ALL_USER_TASKS += \
-	trusty/user/base/app/coverage \
-
-endif
-
-ifeq (true,$(call TOBOOL,$(UNITTEST_COVERAGE_ENABLED)))
-TRUSTY_ALL_USER_TASKS += \
-	trusty/user/base/app/line-coverage \
-
-endif
+	trusty/user/app/sample/vintf/app \
+	$(TRUSTY_RUST_USER_TESTS) \
 
