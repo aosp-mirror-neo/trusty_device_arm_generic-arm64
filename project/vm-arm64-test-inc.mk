@@ -15,8 +15,20 @@
 
 include project/vm-arm-virt-inc.mk
 
+# Enable vsock port forwarder
+# TODO: make this option explicit with TRUSTY_VM_INCLUDE_PORT_FORWARDER
+TEST_BUILD := true
+
 # Enable Vintf TA for vts_treble_vintf_trusted_hal_test
-TRUSTY_VM_INCLUDE_VINTF_TA ?= true
+TRUSTY_VM_INCLUDE_VINTF_TA := true
+
+# This VM contains both authmgr_be_lib tests and tests that depend on a
+# functioning authmgr-fe. The trusty authmgr-be implementation prevents
+# two different connections from the same VM attempting to authenticate.
+# We get around this by running authmgr-be tests before any tests that
+# depend on authmgr-fe and configuring authmgr-fe to defer pVM authentication
+# until the first request for an authorized connection to a trusted HAL.
+AUTHMGRFE_LAZY_PHASE_1 := true
 
 #
 # include list of test TAs for the Trusted HALs
@@ -61,10 +73,3 @@ TRUSTY_ALL_USER_TASKS += \
 
 endif
 
-# This VM contains both authmgr_be_lib tests and tests that depend on a
-# functioning authmgr-fe. The trusty authmgr-be implementation prevents
-# two different connections from the same VM attempting to authenticate.
-# We get around this by running authmgr-be tests before any tests that
-# depend on authmgr-fe and configuring authmgr-fe to defer pVM authentication
-# until the first request for an authorized connection to a trusted HAL.
-AUTHMGRFE_LAZY_PHASE_1 := true
