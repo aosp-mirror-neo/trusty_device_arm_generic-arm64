@@ -15,10 +15,14 @@
 
 include project/vm-arm-virt-inc.mk
 
-# Enable vsock port forwarder
-# TODO: make this option explicit with TRUSTY_VM_INCLUDE_PORT_FORWARDER
-TEST_BUILD := true
+# VM to TZ initiator ports
+# Enable Connecting to a remote(TZ) AuthMgrAuthorization service via a vsock port
+TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK := true
+# Enable Connecting to a remote(TZ) Tipc Port via a vsock port
+# (for raw vsock testing)
+TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK := true
 
+# Host to VM target ports
 # Enable Vintf TA for vts_treble_vintf_trusted_hal_test
 TRUSTY_VM_INCLUDE_VINTF_TA := true
 
@@ -33,6 +37,13 @@ AUTHMGRFE_LAZY_PHASE_1 := true
 #
 # include list of test TAs for the Trusted HALs
 #
+
+# vsock low-level ipc tests
+TRUSTY_USER_TESTS := \
+	trusty/user/base/lib/tipc/test/main \
+	trusty/user/base/lib/tipc/test/srv \
+
+
 TRUSTY_RUST_USER_TESTS := \
 	trusty/user/app/authmgr/authmgr-fe \
 	trusty/user/app/sample/hwcryptokey-test \
