@@ -39,5 +39,10 @@ MMIO_GUARD_ENABLED ?= true
 TRUSTY_VM_GUEST := true
 GLOBAL_DEFINES += TRUSTY_VM_GUEST=1
 
+
+# Do not need to expose IAuthMgrAuthorization in VM
+# until authenticated ports can be implemented for Host to VM
+TRUSTY_VM_INCLUDE_AUTHMGR := false
+
 # Protected VMs require using hvc as the ARM SMCCC conduit
 ARM_SMCCC_CONDUIT_IS_HVC := true
