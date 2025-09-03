@@ -238,6 +238,8 @@ WITH_FAKE_KEYBOX ?= true
 # This project requires trusty IPC
 WITH_TRUSTY_IPC := true
 
+TRUSTY_VM_INCLUDE_AUTHMGR ?= true
+
 SYMTAB_ENABLED ?= true
 
 # include software implementation of a SPI loopback device

@@ -36,7 +36,6 @@ TRUSTY_BUILTIN_USER_TASKS += \
 	trusty/user/app/sample/hwcryptohal/server/app \
 	trusty/user/app/sample/hwwsk \
 	trusty/user/app/sample/rust-hello-world-trusted-hal/app \
-	trusty/user/app/sample/vintf/app \
 	trusty/user/app/storage \
 	trusty/user/base/app/metrics \
 	trusty/user/base/app/system_state_server_static \
