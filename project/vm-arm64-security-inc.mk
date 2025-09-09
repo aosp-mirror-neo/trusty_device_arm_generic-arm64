@@ -15,16 +15,17 @@
 
 include project/vm-arm-virt-inc.mk
 
-#
-# overwrite list of TAs
-#
+# Host to VM target ports
+# enable keymint target port
 TRUSTY_VM_INCLUDE_KEYMINT ?= true
+
+# enable gatekeeper target port
 TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 
 # Trusted HAL for hardware crypto key and secure storage in KeyMint
 KEYMINT_WITH_TRUSTED_HAL ?= true
 
-# compiled from source
+# builtin TAs
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/authmgr/authmgr-fe/app \
 	trusty/user/app/gatekeeper \

@@ -53,7 +53,7 @@ TRUSTY_RUST_USER_TESTS := \
 
 
 TRUSTY_BUILTIN_USER_TASKS := \
-	trusty/user/app/authmgr/authmgr-fe/app \
 	trusty/user/app/sample/vintf/app \
+	trusty/user/app/authmgr/authmgr-fe/app \
 	$(TRUSTY_RUST_USER_TESTS) \
 

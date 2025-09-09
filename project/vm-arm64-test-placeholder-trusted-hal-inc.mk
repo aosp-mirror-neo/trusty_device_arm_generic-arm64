@@ -27,6 +27,11 @@ STORAGE_ENABLE_ERROR_REPORTING ?= true
 STORAGE_AIDL_ENABLED ?= true
 TRUSTY_VM_INCLUDE_SECURE_STORAGE_HAL ?= true
 
+# when placeholder trusted hals are included,
+# enable AuthMgrFE insecure mode in order to
+# connect to the local ports
+AUTHMGRFE_MODE_INSECURE ?= true
+
 include project/vm-arm64-test-inc.mk
 
 TRUSTY_BUILTIN_USER_TASKS += \
@@ -34,8 +39,6 @@ TRUSTY_BUILTIN_USER_TASKS += \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwcrypto \
 	trusty/user/app/sample/hwcryptohal/server/app \
-	trusty/user/app/sample/hwwsk \
-	trusty/user/app/sample/rust-hello-world-trusted-hal/app \
 	trusty/user/app/storage \
 	trusty/user/base/app/metrics \
 	trusty/user/base/app/system_state_server_static \
