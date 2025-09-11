@@ -32,15 +32,18 @@ TRUSTY_VM_INCLUDE_SECURE_STORAGE_HAL ?= true
 
 KEYMINT_TRUSTY_VM ?= nonsecure
 
+# when placeholder trusted hals are included,
+# enable AuthMgrFE insecure mode in order to
+# connect to the local ports
+AUTHMGRFE_MODE_INSECURE ?= true
+
 include project/vm-arm64-security-inc.mk
 
 TRUSTY_BUILTIN_USER_TASKS += \
-	trusty/user/app/authmgr/authmgr-be/app \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwcrypto \
 	trusty/user/app/sample/hwcryptohal/server/app \
 	trusty/user/app/sample/hwwsk \
-	trusty/user/app/sample/rust-hello-world-trusted-hal/app \
 	trusty/user/app/storage \
 	trusty/user/base/app/metrics \
 	trusty/user/base/app/system_state_server_static \
