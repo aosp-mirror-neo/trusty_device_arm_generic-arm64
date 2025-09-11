@@ -25,12 +25,12 @@ WITH_HKDF_RPMB_KEY ?= true
 
 STORAGE_ENABLE_ERROR_REPORTING ?= true
 STORAGE_AIDL_ENABLED ?= true
-TRUSTY_VM_INCLUDE_SECURE_STORAGE_HAL ?= true
 
 # when placeholder trusted hals are included,
-# enable AuthMgrFE insecure mode in order to
-# connect to the local ports
-AUTHMGRFE_MODE_INSECURE ?= true
+# the AuthMgrFE shall not enable the remote accessor
+# feature for secure storage or hwcrypto
+AUTHMGRFE_ACCESSOR_STORAGE ?= false
+AUTHMGRFE_ACCESSOR_HWCRYPTO ?= false
 
 include project/vm-arm64-test-inc.mk
 
