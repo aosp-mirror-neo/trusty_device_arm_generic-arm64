@@ -25,6 +25,11 @@ TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 # Trusted HAL for hardware crypto key and secure storage in KeyMint
 KEYMINT_WITH_TRUSTED_HAL ?= true
 
+# the AuthMgrFE shall enable the remote accessor
+# feature for secure storage and hwcrypto
+AUTHMGRFE_ACCESSOR_STORAGE ?= true
+AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
+
 # builtin TAs
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/authmgr/authmgr-fe/app \

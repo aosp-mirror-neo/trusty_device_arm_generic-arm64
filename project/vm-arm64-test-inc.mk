@@ -34,6 +34,11 @@ TRUSTY_VM_INCLUDE_VINTF_TA := true
 # until the first request for an authorized connection to a trusted HAL.
 AUTHMGRFE_LAZY_PHASE_1 := true
 
+# the AuthMgrFE shall enable the remote accessor
+# feature for secure storage and hwcrypto
+AUTHMGRFE_ACCESSOR_STORAGE ?= true
+AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
+
 #
 # include list of test TAs for the Trusted HALs
 #
