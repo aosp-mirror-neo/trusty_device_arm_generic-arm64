@@ -23,9 +23,6 @@ WITH_FAKE_KEYBOX ?= true
 # Derive RPMB key using HKDF
 WITH_HKDF_RPMB_KEY ?= true
 
-# Trusted HAL for hardware crypto key and secure storage in KeyMint
-KEYMINT_WITH_TRUSTED_HAL ?= false
-
 STORAGE_ENABLE_ERROR_REPORTING ?= true
 STORAGE_AIDL_ENABLED ?= true
 
