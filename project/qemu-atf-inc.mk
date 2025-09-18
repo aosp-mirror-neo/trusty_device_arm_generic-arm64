@@ -29,6 +29,14 @@
 #
 #  The following variable is returned to the caller:
 #      ATF_OUT_DIR    - Directory containing ATF images
+#      ATF_OUT_DIR_DEP - File in ATF_OUT_DIR that every other rule that writes
+#                        to ATF_OUT_DIR must depend on. Depending directly on
+#                        ATF_OUT_DIR will cause un-needed rebuilds when other
+#                        unrelated files are added to ATF_OUT_DIR. An order
+#                        only dependency on ATF_OUT_DIR avoids the rebuilds
+#                        when unrelated files are added, but does not trigger
+#                        all the needed dependencies when the directory gets
+#                        wiped because the tf-a build flags changed.
 #      ATF_BUILD_BASE - location that will be used to store temp files and
 #                       build results.
 #
@@ -40,6 +48,7 @@ ATF_OUT_DIR := $(ATF_BUILD_BASE)/$(ATF_PLAT)/debug
 else
 ATF_OUT_DIR:=$(ATF_BUILD_BASE)/$(ATF_PLAT)/release
 endif
+ATF_OUT_DIR_DEP := $(ATF_OUT_DIR)/TRUSTY_BUILD_DIRECTORY_READY_STAMP
 ATF_BIN := $(ATF_OUT_DIR)/bl31.bin
 
 ATF_WITH_TRUSTY_GENERIC_SERVICES ?= false
@@ -78,7 +87,7 @@ HAFNIUM_DTBS_SRCS := $(addprefix $(ATF_OUT_DIR)/fdts/, $(HAFNIUM_DTBS))
 $(HAFNIUM_DTBS_SRCS): $(ATF_BIN)
 
 HAFNIUM_DTBS_OUT := $(addprefix $(ATF_OUT_DIR)/, $(HAFNIUM_DTBS))
-$(HAFNIUM_DTBS_OUT): $(ATF_OUT_DIR)/%.dtb: $(ATF_OUT_DIR)/fdts/%.dtb
+$(HAFNIUM_DTBS_OUT): $(ATF_OUT_DIR)/%.dtb: $(ATF_OUT_DIR)/fdts/%.dtb $(ATF_OUT_DIR_DEP)
 	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
 EXTRA_BUILDDEPS += $(HAFNIUM_DTBS_OUT)
@@ -93,7 +102,7 @@ EL3SPMC_TOS_FW_CONFIG_DTB_SRC := $(ATF_OUT_DIR)/fdts/tos_fw_config.dtb
 $(EL3SPMC_TOS_FW_CONFIG_DTB_SRC): $(ATF_BIN)
 
 EL3SPMC_TOS_FW_CONFIG_DTB_OUT := $(ATF_OUT_DIR)/tos_fw_config.dtb
-$(EL3SPMC_TOS_FW_CONFIG_DTB_OUT): $(EL3SPMC_TOS_FW_CONFIG_DTB_SRC)
+$(EL3SPMC_TOS_FW_CONFIG_DTB_OUT): $(EL3SPMC_TOS_FW_CONFIG_DTB_SRC) $(ATF_OUT_DIR_DEP)
 	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
 EXTRA_BUILDDEPS += $(EL3SPMC_TOS_FW_CONFIG_DTB_OUT)
@@ -131,9 +140,29 @@ ifeq (true,$(call TOBOOL,$(ATF_WITH_TRUSTY_GENERIC_SERVICES)))
 ATF_MAKE_ARGS += TRUSTY_SPD_WITH_GENERIC_SERVICES=1
 endif
 
+ATF_BUILD_CONFIG = $(BUILDDIR)/atf-build.config
+
+# If any of the build flags passed to the tf-a build system changes, a clean
+# build is needed according to the tf-a documentation. Create a config header
+# with the build flags. This header is never included, but if its timestamp
+# changes we remove the $(ATF_BUILD_BASE) directory and re-create everything
+# it.
+$(ATF_BUILD_CONFIG): ATF_MAKE_ARGS:=$(ATF_MAKE_ARGS)
+$(ATF_BUILD_CONFIG): configheader
+	@$(call INFO_DONE,atf build dir,generating config file,$@)
+	@$(call MAKECONFIGHEADER,$@,ATF_MAKE_ARGS)
+
+$(ATF_OUT_DIR) $(ATF_OUT_DIR_DEP) &: ATF_BUILD_BASE := $(ATF_BUILD_BASE)
+$(ATF_OUT_DIR) $(ATF_OUT_DIR_DEP) &: ATF_OUT_DIR := $(ATF_OUT_DIR)
+$(ATF_OUT_DIR) $(ATF_OUT_DIR_DEP) &: $(ATF_BUILD_CONFIG)
+	@echo Creating fresh atf build dir
+	@rm -rf $(ATF_BUILD_BASE)
+	@mkdir -p $(ATF_OUT_DIR)
+	@touch $(ATF_OUT_DIR_DEP)
+
 $(ATF_BIN): ATF_ROOT:=$(ATF_ROOT)
 $(ATF_BIN): ATF_MAKE_ARGS:=$(ATF_MAKE_ARGS)
-$(ATF_BIN): .PHONY
+$(ATF_BIN): .PHONY $(ATF_OUT_DIR_DEP)
 	$(MAKE) -C $(ATF_ROOT) $(ATF_MAKE_ARGS) all sp
 
 # Add ATF_BIN to the list of project dependencies
@@ -146,6 +175,7 @@ ATF_WITH_TRUSTY_GENERIC_SERVICES:=
 ATF_TOOLCHAIN_PREFIX:=
 ATF_BIN:=
 ATF_MAKE_ARGS:=
+ATF_BUILD_CONFIG :=
 EL3SPMC_TOS_FW_CONFIG_DTS:=
 EL3SPMC_TOS_FW_CONFIG_DTB_SRC:=
 EL3SPMC_TOS_FW_CONFIG_DTB_OUT:=

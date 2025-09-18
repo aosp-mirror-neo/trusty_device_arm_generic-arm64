@@ -170,9 +170,6 @@ QEMU_LLDBINIT := $(BUILDDIR)/lldbinit
 PY3_CMD := $(BUILDDIR)/py3-cmd
 RUN_PY := $(BUILDDIR)/run.py
 
-$(ATF_OUT_DIR):
-	mkdir -p $@
-
 # ATF built binaries
 ATF_BIN := $(ATF_OUT_DIR)/bl31.bin
 ATF_EXTRA_BINS += \
@@ -185,10 +182,10 @@ ATF_SYMLINKS := \
 	$(ATF_OUT_DIR)/bl33.bin \
 	$(EXTRA_ATF_SYMLINKS) \
 
-$(ATF_OUT_DIR)/bl32.bin: $(BL32_BIN) | $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/bl32.bin: $(BL32_BIN) $(ATF_OUT_DIR_DEP)
 	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
-$(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) | $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) $(ATF_OUT_DIR_DEP)
 	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
 ATF_GENERATED_FILES := \
@@ -198,7 +195,7 @@ ATF_GENERATED_FILES := \
 	$(ATF_OUT_DIR)/trusty_userdata.img \
 	$(ATF_OUT_DIR)/trusty_persist.img \
 
-$(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV) | $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV) $(ATF_OUT_DIR_DEP)
 	@echo Initialize rpmb device
 	$< --dev $@ --init --size 2048
 
@@ -267,22 +264,22 @@ endif # PACKAGE_TRUSTY_IMAGES_ONLY
 
 MKE2FS ?= $(ANDROID_OUT_SRC_DIR)/out/host/linux-x86/bin/mke2fs
 $(ATF_OUT_DIR)/metadata.img: MKE2FS := $(MKE2FS)
-$(ATF_OUT_DIR)/metadata.img: | $(ATF_OUT_DIR) $(ANDROID_OUT_SRC_DIR)
+$(ATF_OUT_DIR)/metadata.img: $(ATF_OUT_DIR_DEP) | $(ANDROID_OUT_SRC_DIR)
 	@echo Create metadata.img
 	MKE2FS_CONFIG= $(MKE2FS) -t ext4 -F $@ -O has_journal,extent,huge_file,dir_nlink,extra_isize,uninit_bg 16m
 
 # This image is not used, but /dev/block/vde is configured in
 # device/generic/goldfish/sepolicy/vendor/file_contexts as system_block_device
 # in a way that we cannot override.
-$(ATF_OUT_DIR)/goldfish_reserved.img: | $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/goldfish_reserved.img: $(ATF_OUT_DIR_DEP)
 	@echo Create goldfish_reserved.img
 	dd if=/dev/zero of=$@ bs=4k count=1
 
-$(ATF_OUT_DIR)/trusty_userdata.img: | $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/trusty_userdata.img: $(ATF_OUT_DIR_DEP)
 	@echo Create trusty_userdata.img
 	dd if=/dev/zero of=$@ bs=1024k count=16
 
-$(ATF_OUT_DIR)/trusty_persist.img: | $(ATF_OUT_DIR)
+$(ATF_OUT_DIR)/trusty_persist.img: $(ATF_OUT_DIR_DEP)
 	@echo Create trusty_persist.img
 	dd if=/dev/zero of=$@ bs=1024k count=16
 
