@@ -185,13 +185,9 @@ ATF_SYMLINKS := \
 	$(ATF_OUT_DIR)/bl33.bin \
 	$(EXTRA_ATF_SYMLINKS) \
 
-$(ATF_OUT_DIR)/bl32.bin: BUILDDIR := $(BUILDDIR)
-$(ATF_OUT_DIR)/bl32.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl32.bin: $(BL32_BIN) | $(ATF_OUT_DIR)
 	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
-$(ATF_OUT_DIR)/bl33.bin: BUILDDIR := $(BUILDDIR)
-$(ATF_OUT_DIR)/bl33.bin: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/bl33.bin: $(TEST_RUNNER_BIN) | $(ATF_OUT_DIR)
 	$(NOECHO)$(PATH_TOOLS_BINDIR)/ln -rsf $< $@
 
@@ -202,10 +198,9 @@ ATF_GENERATED_FILES := \
 	$(ATF_OUT_DIR)/trusty_userdata.img \
 	$(ATF_OUT_DIR)/trusty_persist.img \
 
-$(ATF_OUT_DIR)/RPMB_DATA: ATF_OUT_DIR := $(ATF_OUT_DIR)
 $(ATF_OUT_DIR)/RPMB_DATA: $(RPMB_DEV) | $(ATF_OUT_DIR)
 	@echo Initialize rpmb device
-	$< --dev $(ATF_OUT_DIR)/RPMB_DATA --init --size 2048
+	$< --dev $@ --init --size 2048
 
 # Save the android src paths in order to rebuild the world if they change.
 ANDROID_OUT_BUILD_DIR_DEFINES := ANDROID_BUILD_ARTIFACTS=\"$(subst $(SPACE),_,$(ANDROID_BUILD_ARTIFACTS))\"
