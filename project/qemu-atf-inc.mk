@@ -162,8 +162,11 @@ $(ATF_OUT_DIR) $(ATF_OUT_DIR_DEP) &: $(ATF_BUILD_CONFIG)
 
 $(ATF_BIN): ATF_ROOT:=$(ATF_ROOT)
 $(ATF_BIN): ATF_MAKE_ARGS:=$(ATF_MAKE_ARGS)
-$(ATF_BIN): .PHONY $(ATF_OUT_DIR_DEP)
+$(ATF_BIN): $(ATF_OUT_DIR_DEP)
 	$(MAKE) -C $(ATF_ROOT) $(ATF_MAKE_ARGS) all sp
+
+# Always invoke tf-a build system since its dependencies are not visible here
+.PHONY: $(ATF_BIN)
 
 # Add ATF_BIN to the list of project dependencies
 EXTRA_BUILDDEPS += $(ATF_BIN)
