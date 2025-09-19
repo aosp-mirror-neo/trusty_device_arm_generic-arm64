@@ -34,6 +34,9 @@ KEYMINT_TRUSTY_VM ?= nonsecure
 AUTHMGRFE_ACCESSOR_STORAGE ?= false
 AUTHMGRFE_ACCESSOR_HWCRYPTO ?= false
 
+# when using placeholders, SHARED SECRET will be handled by the placeholder HwCrypto server
+TRUSTY_VM_INCLUDE_PLACEHOLDER_SHARED_SECRET ?= true
+
 include project/vm-arm64-security-inc.mk
 
 TRUSTY_BUILTIN_USER_TASKS += \
