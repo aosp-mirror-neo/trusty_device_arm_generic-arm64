@@ -138,6 +138,9 @@ ifeq (true,$(call TOBOOL,$(KERNEL_32BIT)))
 ATF_MAKE_ARGS += INIT_UNUSED_NS_EL2=1
 ATF_MAKE_ARGS += ENABLE_FEAT_MOPS=2
 endif
+# No Poetry in the Android tree, so wrap it
+# using fake_poetry.sh so it calls py3 instead.
+ATF_MAKE_ARGS += POETRY=$(TRUSTY_TOP)/trusty/host/common/scripts/fake_poetry/fake_poetry.sh
 
 ifeq (true,$(call TOBOOL,$(ATF_WITH_TRUSTY_GENERIC_SERVICES)))
 ATF_MAKE_ARGS += TRUSTY_SPD_WITH_GENERIC_SERVICES=1
