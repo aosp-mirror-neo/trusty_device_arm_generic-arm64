@@ -46,3 +46,8 @@ TRUSTY_VM_INCLUDE_AUTHMGR := false
 
 # Protected VMs require using hvc as the ARM SMCCC conduit
 ARM_SMCCC_CONDUIT_IS_HVC := true
+
+# The arm_ffa LK module only supports FFA_DIRECT_REQ2 needed for virtio-msg over FFA on ARM64
+ifeq ($(ARCH),arm64)
+VSOCK_WITH_VIRTIO_MSG_DRIVER ?= true
+endif
