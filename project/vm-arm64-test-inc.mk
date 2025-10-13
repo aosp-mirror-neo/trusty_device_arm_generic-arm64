@@ -26,6 +26,10 @@ TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK := true
 # Enable Vintf TA for vts_treble_vintf_trusted_hal_test
 TRUSTY_VM_INCLUDE_VINTF_TA := true
 
+# HwCrypto operations are currently not mandatory, so this flag is used to indicate if we should
+# run the tests
+HWCRYPTO_EXCLUDE_SYMMETRIC_OPERATION_TESTS := true
+
 # This VM contains both authmgr_be_lib tests and tests that depend on a
 # functioning authmgr-fe. The trusty authmgr-be implementation prevents
 # two different connections from the same VM attempting to authenticate.
