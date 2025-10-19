@@ -15,6 +15,13 @@
 
 include project/vm-arm-virt-inc.mk
 
+# VM to TZ initiator ports
+# Enable Connecting to a remote(TZ) AuthMgrAuthorization service via a vsock port
+TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK := true
+# Enable Connecting to a remote(TZ) Tipc Port via a vsock port
+# (for raw vsock testing)
+TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK := true
+
 # Host to VM target ports
 # enable keymint target port
 TRUSTY_VM_INCLUDE_KEYMINT ?= true
