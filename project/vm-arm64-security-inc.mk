@@ -25,6 +25,10 @@ TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 # Trusted HAL for hardware crypto key and secure storage in KeyMint
 KEYMINT_WITH_TRUSTED_HAL ?= true
 
+# TODO(b/453412413): allow keymint HAL to provision keymint until
+# the dedicated front-end is in place
+KEYMINT_PROVISIONING_VIA_HAL ?= true
+
 # the AuthMgrFE shall enable the remote accessor
 # feature for secure storage and hwcrypto
 AUTHMGRFE_ACCESSOR_STORAGE ?= true
