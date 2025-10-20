@@ -12,4 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# The virtio-msg vsock device needs to receive FF-A messages so it's only
+# included if lib/sm is built with the FF-A loop to do so.
+ifeq (true,$(call TOBOOL,$(LIB_SM_WITH_FFA_LOOP)))
+VSOCK_WITH_VIRTIO_MSG_DEVICE ?= true
+endif
+
 include project/generic-arm-inc.mk

@@ -25,9 +25,12 @@ WITH_HKDF_RPMB_KEY ?= true
 
 STORAGE_ENABLE_ERROR_REPORTING ?= true
 STORAGE_AIDL_ENABLED ?= true
-TRUSTY_VM_INCLUDE_SECURE_STORAGE_HAL ?= true
 
-TEST_BUILD := true
+# when placeholder trusted hals are included,
+# the AuthMgrFE shall not enable the remote accessor
+# feature for secure storage or hwcrypto
+AUTHMGRFE_ACCESSOR_STORAGE ?= false
+AUTHMGRFE_ACCESSOR_HWCRYPTO ?= false
 
 include project/vm-arm64-test-inc.mk
 
@@ -36,9 +39,6 @@ TRUSTY_BUILTIN_USER_TASKS += \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwcrypto \
 	trusty/user/app/sample/hwcryptohal/server/app \
-	trusty/user/app/sample/hwwsk \
-	trusty/user/app/sample/rust-hello-world-trusted-hal/app \
-	trusty/user/app/sample/vintf/app \
 	trusty/user/app/storage \
 	trusty/user/base/app/metrics \
 	trusty/user/base/app/system_state_server_static \

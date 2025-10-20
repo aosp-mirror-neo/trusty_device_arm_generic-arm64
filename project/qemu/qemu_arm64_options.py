@@ -99,7 +99,8 @@ class QemuArm64Options(object):
         "androidboot.hypervisor.version=1.0.0 "
         "androidboot.hypervisor.vm.supported=1 "
         "androidboot.hypervisor.protected_vm.supported=1 "
-        "trusty-log.log_ratelimit_interval=0 trusty-log.log_to_dmesg=always")
+        "trusty-log.log_ratelimit_interval=0 trusty-log.log_to_dmesg=always "
+        "printk.devkmsg=on")
 
     def __init__(self, config, instance_dir):
         self.args = []

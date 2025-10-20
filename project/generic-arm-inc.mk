@@ -154,7 +154,13 @@ MODULES += \
 	trusty/kernel/lib/trusty \
 	trusty/kernel/lib/metrics \
 	trusty/kernel/services/apploader \
+	trusty/kernel/services/hwrng \
+
+ifeq (false,$(call TOBOOL,$(TRUSTY_VM_GUEST)))
+MODULES += \
 	trusty/kernel/services/smc \
+
+endif
 
 # Add lib/sm by default but allow building without it
 LIB_SM_ENABLED ?= true
@@ -231,6 +237,8 @@ WITH_FAKE_KEYBOX ?= true
 
 # This project requires trusty IPC
 WITH_TRUSTY_IPC := true
+
+TRUSTY_VM_INCLUDE_AUTHMGR ?= true
 
 SYMTAB_ENABLED ?= true
 

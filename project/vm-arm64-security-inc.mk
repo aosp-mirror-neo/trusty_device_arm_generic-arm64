@@ -15,13 +15,33 @@
 
 include project/vm-arm-virt-inc.mk
 
-#
-# overwrite list of TAs
-#
+# VM to TZ initiator ports
+# Enable Connecting to a remote(TZ) AuthMgrAuthorization service via a vsock port
+TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK := true
+# Enable Connecting to a remote(TZ) Tipc Port via a vsock port
+# (for raw vsock testing)
+TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK := true
+
+# Host to VM target ports
+# enable keymint target port
 TRUSTY_VM_INCLUDE_KEYMINT ?= true
+
+# enable gatekeeper target port
 TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 
-# compiled from source
+# Trusted HAL for hardware crypto key and secure storage in KeyMint
+KEYMINT_WITH_TRUSTED_HAL ?= true
+
+# TODO(b/453412413): allow keymint HAL to provision keymint until
+# the dedicated front-end is in place
+KEYMINT_PROVISIONING_VIA_HAL ?= true
+
+# the AuthMgrFE shall enable the remote accessor
+# feature for secure storage and hwcrypto
+AUTHMGRFE_ACCESSOR_STORAGE ?= true
+AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
+
+# builtin TAs
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/authmgr/authmgr-fe/app \
 	trusty/user/app/gatekeeper \
