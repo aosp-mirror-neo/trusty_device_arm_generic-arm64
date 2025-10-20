@@ -48,3 +48,11 @@ TRUSTY_BUILTIN_USER_TASKS += \
 	trusty/user/base/app/metrics \
 	trusty/user/base/app/system_state_server_static \
 
+# In the placeholder-trusted-hal configuration, the guest VM includes both
+# AuthMgrFE and AuthMgrBE TAs, which connect directly, and not via virtio over
+# FFA. In the case of a direct connection, AuthMgrBE receives a UUID as the
+# ClientIdentifier, instead of a FFA VM-ID which it would receive in the case
+# where the client connects via virtio over FFA. If it receives a UUID when this
+# flag is enabled, the  AuthMgrBE extracts the first 16 bits of the UUID as
+# a mock transport id (a.k.a VM-ID).
+AUTHMGR_MOCK_TRANSPORT_ID := true
