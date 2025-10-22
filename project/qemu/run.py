@@ -114,6 +114,7 @@ def build_argparser():
     argument_parser.add_argument("--initrd")
     argument_parser.add_argument("--instance-dir", type=str,
                                  default="/tmp/trusty-qemu-generic-arm64")
+    argument_parser.add_argument("--preserve-instance", action="store_true")
     argument_parser.add_argument("--atf")
     argument_parser.add_argument("--qemu")
     argument_parser.add_argument("--arch")
@@ -152,6 +153,7 @@ def main():
     runner = qemu.Runner(config,
                          interactive=not args.headless,
                          instance_dir=args.instance_dir,
+                         preserve_instance=args.preserve_instance,
                          verbose=args.verbose,
                          rpmb=not args.disable_rpmb,
                          debug=args.debug,

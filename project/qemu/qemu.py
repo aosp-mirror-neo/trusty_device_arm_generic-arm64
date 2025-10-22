@@ -348,6 +348,7 @@ class Runner(object):
     def __init__(self,
                  config,
                  instance_dir: os.PathLike,
+                 preserve_instance=False,
                  interactive=False,
                  verbose=False,
                  rpmb=True,
@@ -374,6 +375,7 @@ class Runner(object):
         self.session: Optional[RunnerSession] = None
         self.state = RunnerState.OFF
         self.instance_dir = instance_dir
+        self.preserve_instance = preserve_instance
 
         # If we're not verbose or interactive, squelch command output
         if verbose or self.interactive:
@@ -1150,4 +1152,4 @@ class Runner(object):
                 # The user is responsible for quitting QEMU
                 assert self.session.qemu_proc
                 self.session.qemu_proc.wait()
-            self.shutdown(factory_reset=True, full_wipe=False)
+            self.shutdown(factory_reset=not self.preserve_instance, full_wipe=False)
