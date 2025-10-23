@@ -169,6 +169,7 @@ QEMU_LLDB_SUPPORT_PY := $(BUILDDIR)/lldb_support.py
 QEMU_LLDBINIT := $(BUILDDIR)/lldbinit
 PY3_CMD := $(BUILDDIR)/py3-cmd
 RUN_PY := $(BUILDDIR)/run.py
+TEST_REF_DT := $(BUILDDIR)/test_ref_dt.dts
 
 # ATF built binaries
 ATF_BIN := $(ATF_OUT_DIR)/bl31.bin
@@ -292,6 +293,7 @@ QEMU_SCRIPTS := \
 	$(QEMU_LLDB_SUPPORT_PY) \
 	$(QEMU_LLDBINIT) \
 	$(RUN_PY) \
+	$(TEST_REF_DT) \
 
 $(QEMU_SCRIPTS): .PHONY
 EXTRA_BUILDDEPS += $(QEMU_SCRIPTS)
@@ -337,6 +339,11 @@ $(QEMU_LLDBINIT): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/lldbinit
 # scripts for more granular control over how tests share emulator instances.
 # It serves as a wrapper around qemu.py which defaults the config.
 $(RUN_PY): $(PROJECT_QEMU_INC_LOCAL_DIR)/qemu/run.py
+	@echo copying $@
+	@cp $< $@
+
+# It serves as a wrapper around qemu.py which defaults the config.
+$(TEST_REF_DT): $(PROJECT_QEMU_INC_LOCAL_DIR)/avf/test_ref_dt.dts
 	@echo copying $@
 	@cp $< $@
 
