@@ -18,7 +18,8 @@ TRUSTY_PROJECT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
 
 def init(*, android=None, instance_dir: os.PathLike, disable_rpmb=False,
-         verbose=False, debug_on_error=False
+         verbose=False, debug_on_error=False,
+         extra_linux_args: Optional[list[str]] = None,
 ) -> qemu.Runner:
 
     with open(f"{TRUSTY_PROJECT_FOLDER}/config.json", encoding="utf-8") as json:
@@ -28,6 +29,9 @@ def init(*, android=None, instance_dir: os.PathLike, disable_rpmb=False,
         config.android_image_dir = qemu.find_android_image_dir(android)
         config.adb = qemu.find_adb_path(android)
         config.boot_android = True
+
+    if extra_linux_args is not None:
+        config.extra_linux_args += extra_linux_args
 
     runner = qemu.Runner(config,
                          interactive=False,
