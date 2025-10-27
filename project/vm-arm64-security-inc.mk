@@ -45,8 +45,7 @@ AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/authmgr/authmgr-fe/app \
 	trusty/user/app/gatekeeper \
-	trusty/user/app/keymint/app \
-	trusty/user/app/keymint/vm/commservice/app \
+	trusty/user/app/keymint/security_vm_app \
 	trusty/user/base/app/device_tree \
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
