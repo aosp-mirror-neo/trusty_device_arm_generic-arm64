@@ -166,11 +166,7 @@ class QemuArm64Options(object):
 
         with open(ref_dts, "r", encoding="utf-8") as ref_dts_file:
             next(ref_dts_file)  # skip the /dts-v1/ tag
-            return (
-                ref_dts_file.read()
-                # corresponding node names for the host DT
-                .replace("avf", "firmware", 1).replace("avb_boot_info", "android", 1)
-            )
+            return ref_dts_file.read()
 
     def gen_dtb(self, args, dtb_tmp_file):
         """Computes a trusty device tree, returning a file for it"""
