@@ -3,3 +3,10 @@ dirgroup {
     dirs: ["."],
     visibility: ["//trusty/vendor/google/aosp/scripts"],
 }
+
+genrule {
+    name: "test_ref_dt",
+    defaults: ["dts_to_dtb"],
+    srcs: ["project/avf/test_ref_dt.dts"],
+    out: ["test_ref_dt.dtb"],
+}

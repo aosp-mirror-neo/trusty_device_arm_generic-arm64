@@ -161,6 +161,17 @@ class QemuArm64Options(object):
     }};
         """
 
+    def test_ref_dts(self):
+        ref_dts = os.path.join(self.config.script_dir, "test_ref_dt.dts")
+
+        with open(ref_dts, "r", encoding="utf-8") as ref_dts_file:
+            next(ref_dts_file)  # skip the /dts-v1/ tag
+            return (
+                ref_dts_file.read()
+                # corresponding node names for the host DT
+                .replace("avf", "firmware", 1).replace("avb_boot_info", "android", 1)
+            )
+
     def gen_dtb(self, args, dtb_tmp_file):
         """Computes a trusty device tree, returning a file for it"""
         dtc = _find_dtc()
@@ -188,6 +199,8 @@ class QemuArm64Options(object):
                         f"dtb_to_dts failed with {dtb_to_dts.returncode}")
 
         dts += self.initrd_dts()
+        if self.config.boot_android is not None:
+            dts += self.test_ref_dts()
 
         # Subprocess closes dtb, so we can't allow it to autodelete
         dtb = dtb_tmp_file
