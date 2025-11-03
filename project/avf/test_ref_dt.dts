@@ -5,8 +5,8 @@
         avb_boot_info {
             compatible = "android,firmware";
             vbmeta.device_state = "locked";
-            vbmeta.digest = "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d";
-            vbmeta.public_key_digest = "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00";
+            vbmeta.digest = "0000000000000000000000000000000000000000000000000000000000000000";
+            vbmeta.public_key_digest = "0000000000000000000000000000000000000000000000000000000000000000";
             verifiedbootstate = "fake";
         };
     };
