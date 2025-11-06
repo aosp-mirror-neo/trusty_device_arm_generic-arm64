@@ -14,6 +14,7 @@
 #
 
 ARM64_BOOT_PROTOCOL := X0_DTB
+VSOCK_WITH_DEVICE_TREE ?= true
 
 # Derive RPMB key using HKDF
 WITH_HKDF_RPMB_KEY ?= true
