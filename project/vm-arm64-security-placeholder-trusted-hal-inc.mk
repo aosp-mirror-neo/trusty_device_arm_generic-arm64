@@ -30,7 +30,8 @@ KEYMINT_TRUSTY_VM ?= nonsecure
 
 # when placeholder trusted hals are included,
 # the AuthMgrFE shall not enable the remote accessor
-# feature for secure storage or hwcrypto
+# feature for secure storage, hwcrypto or device state
+AUTHMGRFE_ACCESSOR_DEVICESTATE ?= false
 AUTHMGRFE_ACCESSOR_STORAGE ?= false
 AUTHMGRFE_ACCESSOR_HWCRYPTO ?= false
 
@@ -40,6 +41,7 @@ TRUSTY_VM_INCLUDE_PLACEHOLDER_SHARED_SECRET ?= true
 include project/vm-arm64-security-inc.mk
 
 TRUSTY_BUILTIN_USER_TASKS += \
+	trusty/user/app/sample/devicestatehal/server/app \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwcrypto \
 	trusty/user/app/sample/hwcryptohal/server/app \

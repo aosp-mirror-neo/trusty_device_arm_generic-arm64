@@ -39,7 +39,8 @@ HWCRYPTO_EXCLUDE_SYMMETRIC_OPERATION_TESTS := true
 AUTHMGRFE_LAZY_PHASE_1 := true
 
 # the AuthMgrFE shall enable the remote accessor
-# feature for secure storage and hwcrypto
+# feature for secure storage, hwcrypto and device state
+AUTHMGRFE_ACCESSOR_DEVICESTATE ?= true
 AUTHMGRFE_ACCESSOR_STORAGE ?= true
 AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
 
