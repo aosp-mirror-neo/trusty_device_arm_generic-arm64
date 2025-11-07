@@ -56,6 +56,7 @@ TRUSTY_USER_TESTS := \
 
 TRUSTY_RUST_USER_TESTS := \
 	trusty/user/app/authmgr/authmgr-fe \
+	trusty/user/app/sample/devicestate-test \
 	trusty/user/app/sample/hwcryptokey-test \
 	trusty/user/app/storage/test/storage-unittest-aidl \
 	trusty/user/app/storage/test/storage-unittest-aidl/ns \
