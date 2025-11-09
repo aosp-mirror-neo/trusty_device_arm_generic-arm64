@@ -13,25 +13,50 @@
 # limitations under the License.
 #
 
+# the test_os VM is expected to be used for Trusty OS testing
+# as well as SEE HAL testing in standalone (i.e. with local SEE HAL services).
+#
+# include with the placeholder trusted hals
+#
+WITH_FAKE_HWRNG ?= true
+WITH_FAKE_HWKEY ?= true
+WITH_FAKE_KEYBOX ?= true
+
+# Derive RPMB key using HKDF
+WITH_HKDF_RPMB_KEY ?= true
+
+STORAGE_ENABLE_ERROR_REPORTING ?= true
+STORAGE_AIDL_ENABLED ?= true
+
+# when placeholder trusted hals are included,
+# the AuthMgrFE shall not enable the remote accessor
+# feature for secure storage, hwcrypto or device state
+AUTHMGRFE_ACCESSOR_DEVICESTATE ?= false
+AUTHMGRFE_ACCESSOR_STORAGE ?= false
+AUTHMGRFE_ACCESSOR_HWCRYPTO ?= false
+TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK ?= false
+TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK ?= false
+
 include project/vm-arm-virt-test-inc.mk
 
-# the test_os VM does not include any TAs by default
-# (except for the test TAs that are included by virt-test-inc.mk)
-#
-# tests in Trusty are mostly declared as TRUSTY_LOADABLE_USER_TESTS,
-# they also are included by default as builtin apps
-# (unless the top-level makefile initializes TRUSTY_BUILTIN_USER_TESTS,
-#  see documentation in trusty/kernel/app/trusty/user-tasks.mk)
-#
-# for virt payload, loadable TAs are generally not applicable
-# (apploader interface is not a stable ABI yet).
-# So apploader should generally be disabled.
-#
-# the Trusty build system however makes it complicated to disable
-# apploader service while still declaring tests as loadable.
-# as a short-term workaround, the test-vm will include apploader service
-# TODO(b/) evolve `trusty/kernel/app/trusty/user-tasks.mk` to support
-# disabling apploader service and rebalancing loadable test as builtin tests
-TRUSTY_BUILTIN_USER_TASKS := \
-	trusty/user/base/app/apploader \
+# TRUSTY_BUILTIN_USER_TASKS := \
+# 	trusty/user/base/app/apploader \
 
+TRUSTY_BUILTIN_USER_TASKS += \
+	trusty/user/app/sample/devicestatehal/server/app \
+	trusty/user/app/authmgr/authmgr-be/app \
+	trusty/user/app/sample/hwaes \
+	trusty/user/app/sample/hwcrypto \
+	trusty/user/app/sample/hwcryptohal/server/app \
+	trusty/user/app/storage \
+	trusty/user/base/app/metrics \
+	trusty/user/base/app/system_state_server_static \
+
+# In the placeholder-trusted-hal configuration, the guest VM includes both
+# AuthMgrFE and AuthMgrBE TAs, which connect directly, and not via virtio over
+# FFA. In the case of a direct connection, AuthMgrBE receives a UUID as the
+# ClientIdentifier, instead of a FFA VM-ID which it would receive in the case
+# where the client connects via virtio over FFA. If it receives a UUID when this
+# flag is enabled, the  AuthMgrBE extracts the first 16 bits of the UUID as
+# a mock transport id (a.k.a VM-ID).
+AUTHMGR_MOCK_TRANSPORT_ID := true
