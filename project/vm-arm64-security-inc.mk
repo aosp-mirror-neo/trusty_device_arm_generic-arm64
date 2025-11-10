@@ -37,7 +37,8 @@ KEYMINT_WITH_TRUSTED_HAL ?= true
 KEYMINT_PROVISIONING_VIA_HAL ?= true
 
 # the AuthMgrFE shall enable the remote accessor
-# feature for secure storage and hwcrypto
+# feature for secure storage, hwcrypto and device state
+AUTHMGRFE_ACCESSOR_DEVICESTATE ?= true
 AUTHMGRFE_ACCESSOR_STORAGE ?= true
 AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
 

@@ -17,18 +17,18 @@ include project/vm-arm-virt-inc.mk
 
 # VM to TZ initiator ports
 # Enable Connecting to a remote(TZ) AuthMgrAuthorization service via a vsock port
-TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK := true
+TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK ?= true
 # Enable Connecting to a remote(TZ) Tipc Port via a vsock port
 # (for raw vsock testing)
-TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK := true
+TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK ?= true
 
 # Host to VM target ports
 # Enable Vintf TA for vts_treble_vintf_trusted_hal_test
-TRUSTY_VM_INCLUDE_VINTF_TA := true
+TRUSTY_VM_INCLUDE_VINTF_TA ?= true
 
 # HwCrypto operations are currently not mandatory, so this flag is used to indicate if we should
 # run the tests
-HWCRYPTO_EXCLUDE_SYMMETRIC_OPERATION_TESTS := true
+HWCRYPTO_EXCLUDE_SYMMETRIC_OPERATION_TESTS ?= true
 
 # This VM contains both authmgr_be_lib tests and tests that depend on a
 # functioning authmgr-fe. The trusty authmgr-be implementation prevents
@@ -36,10 +36,11 @@ HWCRYPTO_EXCLUDE_SYMMETRIC_OPERATION_TESTS := true
 # We get around this by running authmgr-be tests before any tests that
 # depend on authmgr-fe and configuring authmgr-fe to defer pVM authentication
 # until the first request for an authorized connection to a trusted HAL.
-AUTHMGRFE_LAZY_PHASE_1 := true
+AUTHMGRFE_LAZY_PHASE_1 ?= true
 
 # the AuthMgrFE shall enable the remote accessor
-# feature for secure storage and hwcrypto
+# feature for secure storage, hwcrypto and device state
+AUTHMGRFE_ACCESSOR_DEVICESTATE ?= true
 AUTHMGRFE_ACCESSOR_STORAGE ?= true
 AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
 
@@ -55,6 +56,7 @@ TRUSTY_USER_TESTS := \
 
 TRUSTY_RUST_USER_TESTS := \
 	trusty/user/app/authmgr/authmgr-fe \
+	trusty/user/app/sample/devicestate-test \
 	trusty/user/app/sample/hwcryptokey-test \
 	trusty/user/app/storage/test/storage-unittest-aidl \
 	trusty/user/app/storage/test/storage-unittest-aidl/ns \

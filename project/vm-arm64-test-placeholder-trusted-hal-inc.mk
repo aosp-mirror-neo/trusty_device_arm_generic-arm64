@@ -28,13 +28,17 @@ STORAGE_AIDL_ENABLED ?= true
 
 # when placeholder trusted hals are included,
 # the AuthMgrFE shall not enable the remote accessor
-# feature for secure storage or hwcrypto
+# feature for secure storage, hwcrypto or device state
+AUTHMGRFE_ACCESSOR_DEVICESTATE ?= false
 AUTHMGRFE_ACCESSOR_STORAGE ?= false
 AUTHMGRFE_ACCESSOR_HWCRYPTO ?= false
+TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK ?= false
+TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK ?= false
 
 include project/vm-arm64-test-inc.mk
 
 TRUSTY_BUILTIN_USER_TASKS += \
+	trusty/user/app/sample/devicestatehal/server/app \
 	trusty/user/app/authmgr/authmgr-be/app \
 	trusty/user/app/sample/hwaes \
 	trusty/user/app/sample/hwcrypto \
