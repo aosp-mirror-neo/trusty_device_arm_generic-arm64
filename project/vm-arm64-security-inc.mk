@@ -27,6 +27,7 @@ TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK := true
 TRUSTY_VM_INCLUDE_KEYMINT ?= true
 
 # enable gatekeeper target port
+TRUSTY_VM_INCLUDE_GATEKEEPER_WITH_THAL ?= true
 TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 
 # Trusted HAL for hardware crypto key and secure storage in KeyMint
@@ -46,9 +47,17 @@ AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
 # builtin TAs
 TRUSTY_BUILTIN_USER_TASKS := \
 	trusty/user/app/authmgr/authmgr-fe/app \
-	trusty/user/app/gatekeeper \
 	trusty/user/app/keymint/security_vm_app \
 	trusty/user/base/app/device_tree \
+
+ifeq (true,$(call TOBOOL,$(TRUSTY_VM_INCLUDE_GATEKEEPER_WITH_THAL)))
+TRUSTY_VM_INCLUDE_GATEKEEPER := false
+TRUSTY_BUILTIN_USER_TASKS += trusty/user/app/gatekeeper/see/gatekeeper/app
+endif
+
+ifeq (true,$(call TOBOOL,$(TRUSTY_VM_INCLUDE_GATEKEEPER)))
+TRUSTY_BUILTIN_USER_TASKS += trusty/user/app/gatekeeper
+endif
 
 ifeq (true,$(call TOBOOL,$(USER_COVERAGE_ENABLED)))
 TRUSTY_ALL_USER_TASKS += \
