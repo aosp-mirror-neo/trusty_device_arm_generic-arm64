@@ -40,7 +40,7 @@ DICE_PROFILE_FOR_OPEN_DICE := android
 # is only relevant for protected VMs, but fails
 # gracefully if the handover is not present in the
 # device tree, so we set it for all VM projects.
-MAP_RESERVED_MEM_FROM_DT ?= true
+MAP_DT_DATA_TO_USERSPACE ?= true
 
 include project/generic-arm-virt-inc.mk
 include project/generic-arm-tz-inc.mk

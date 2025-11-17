@@ -21,6 +21,8 @@ TRUSTY_VM_ENABLE_AUTHMGR_VIA_VSOCK ?= true
 # Enable Connecting to a remote(TZ) Tipc Port via a vsock port
 # (for raw vsock testing)
 TRUSTY_VM_ENABLE_TIPC_PORT_VIA_VSOCK ?= true
+TRUSTY_IPC_TEST_OVER_VSOCK ?= true
+TRUSTY_IPC_TEST_LOCAL ?= false
 
 # Host to VM target ports
 # Enable Vintf TA for vts_treble_vintf_trusted_hal_test

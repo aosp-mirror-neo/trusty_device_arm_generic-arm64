@@ -1,13 +1,13 @@
 /dts-v1/;
 
 /{
-    avf {
-        avb_boot_info {
+    firmware {
+        android {
             compatible = "android,firmware";
-            vbmeta.device_state = "locked";
-            vbmeta.digest = "0000000000000000000000000000000000000000000000000000000000000000";
-            vbmeta.public_key_digest = "0000000000000000000000000000000000000000000000000000000000000000";
-            verifiedbootstate = "fake";
+            host.vbmeta.device_state = "locked";
+            host.vbmeta.digest = "00000000000000000000000000000000";
+            host.vbmeta.public_key_digest = "0000000000000000000000000000000000000000000000000000000000000000";
+            host.verifiedbootstate = "fake";
         };
     };
 };
