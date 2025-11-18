@@ -42,7 +42,8 @@ AUTHMGRFE_LAZY_PHASE_1 ?= true
 
 # the AuthMgrFE shall enable the remote accessor
 # feature for secure storage, hwcrypto and device state
-AUTHMGRFE_ACCESSOR_DEVICESTATE ?= true
+# TODO: b/453056208 - IDeviceState is not stabilized yet
+AUTHMGRFE_ACCESSOR_DEVICESTATE ?= false
 AUTHMGRFE_ACCESSOR_STORAGE ?= true
 AUTHMGRFE_ACCESSOR_HWCRYPTO ?= true
 
