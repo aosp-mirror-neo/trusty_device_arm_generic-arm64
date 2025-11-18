@@ -4,10 +4,10 @@
     firmware {
         android {
             compatible = "android,firmware";
-            host.vbmeta.device_state = "locked";
+            host.vbmeta.device_state = "unlocked";
             host.vbmeta.digest = "00000000000000000000000000000000";
             host.vbmeta.public_key_digest = "0000000000000000000000000000000000000000000000000000000000000000";
-            host.verifiedbootstate = "fake";
+            host.verifiedbootstate = "orange";
         };
     };
 };
