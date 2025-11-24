@@ -132,8 +132,11 @@ ATF_MAKE_ARGS += DEBUG=$(ATF_DEBUG)
 ATF_MAKE_ARGS += BUILD_BASE=$(ATF_BUILD_BASE)
 ATF_MAKE_ARGS += QEMU_USE_GIC_DRIVER=QEMU_GICV$(GIC_VERSION)
 # On aarch32, we skip EL2, see 27d8e1e75a2f45d7c23
+# This also requires enabling MOPS at EL3; set it to autodetect
+# in case qemu doesn't support it on the current project
 ifeq (true,$(call TOBOOL,$(KERNEL_32BIT)))
 ATF_MAKE_ARGS += INIT_UNUSED_NS_EL2=1
+ATF_MAKE_ARGS += ENABLE_FEAT_MOPS=2
 endif
 
 ifeq (true,$(call TOBOOL,$(ATF_WITH_TRUSTY_GENERIC_SERVICES)))
