@@ -16,17 +16,6 @@ ADDR_SIZE_BITS = 64
 ARCH_ID = "aarch64"
 
 
-def kernel_entry_point(debugger):
-    """Finds the starting virtual address of the kernel.
-
-    Assumes the kernel is the first target loaded into the debugger.
-    """
-    target = debugger.GetTargetAtIndex(0)
-    module = target.GetModuleAtIndex(0)
-    section = module.GetSectionAtIndex(0)
-    return section.GetFileAddress()
-
-
 def lldb_module_offset(original_entry_point, new_entry_point):
     """Calculate an LLDB module load offset.
 
@@ -46,15 +35,6 @@ def lldb_module_offset(original_entry_point, new_entry_point):
     return (
         (new_entry_point - original_entry_point) &
         ((1 << ADDR_SIZE_BITS) - 1)
-    )
-
-
-def move_kernel_lldb_module(debugger, new_entry_point):
-    original_entry_point = kernel_entry_point(debugger)
-    offset = lldb_module_offset(original_entry_point, new_entry_point)
-    lk_elf = os.path.basename(KERNEL_ELF_FILE)
-    debugger.HandleCommand(
-        f"target modules load -f {lk_elf} -s {hex(offset)}"
     )
 
 
@@ -117,34 +97,6 @@ def init_symbols_file_map():
         uuid_symbol_map[uuid] = symbol_path
 
 
-def trusty_thread_start_hook(debugger, _command, context, result,
-                             _internal_dict):
-    """Breakpoint command for extracting TA load_biases and loading
-     corresponding ELF files with those load biases.
-    """
-    trusty_app = context.GetFrame().FindVariable(
-        "trusty_thread").GetChildMemberWithName("app")
-    load_bias = trusty_app.GetChildMemberWithName(
-        "load_bias").GetValueAsUnsigned()
-    uuid_struct = trusty_app.GetChildMemberWithName(
-        "props").GetChildMemberWithName("uuid")
-
-    uuid = parse_uuid_struct(uuid_struct)
-
-    symbols_file_path = uuid_symbol_map.get(uuid)
-    if symbols_file_path is None:
-        print(f"Could not find symbols file for UUID {uuid}", file=result)
-        return
-
-    debugger.HandleCommand(f"target modules add {symbols_file_path}")
-    symbols_file_name = os.path.basename(symbols_file_path)
-    print(f"Setting {symbols_file_name} entry point to {hex(load_bias)}")
-    debugger.HandleCommand(
-        f"target modules load -f {symbols_file_name} -s {hex(load_bias)}"
-    )
-    debugger.HandleCommand("continue")
-
-
 def trusty_thread_start_breakpoint_callback(frame, _bp_loc, _extra_args, _internal_dict):
     """Breakpoint python script for extracting TA load_biases and loading
      corresponding ELF files with those load biases.
@@ -199,14 +151,6 @@ def initialize_kernel_lldb_module(debugger, _command, _context, result,
     set_lldb_module_address(target, module, SEC_DRAM_BASE)
 
 
-def relocate_kernel_hook(debugger, _command, context, result, _internal_dict):
-    new_base = context.GetFrame().FindVariable("new_base").GetValueAsUnsigned()
-
-    print(f"Setting kernel ELF entry point to {hex(new_base)}", file=result)
-    move_kernel_lldb_module(debugger, new_entry_point=new_base)
-    debugger.HandleCommand("continue")
-
-
 def set_lldb_module_address(target, module, new_entry_point):
     """Set the module's new entry point address.
 
@@ -250,13 +194,5 @@ def relocate_kernel_breakpoint_callback(frame, _bp_loc, _extra_args, _internal_d
     return False
 
 
-def register_command(debugger, function):
-    fname = function.__name__
-    debugger.HandleCommand(f"command script add -f {__name__}.{fname} {fname}")
-
-
 def __lldb_init_module(debugger, _internal_dict):
     init_symbols_file_map()
-
-    register_command(debugger, relocate_kernel_hook)
-    register_command(debugger, trusty_thread_start_hook)
