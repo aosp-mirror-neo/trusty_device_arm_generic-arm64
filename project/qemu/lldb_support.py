@@ -144,6 +144,45 @@ def trusty_thread_start_hook(debugger, _command, context, result,
     debugger.HandleCommand("continue")
 
 
+def trusty_thread_start_breakpoint_callback(frame, _bp_loc, _extra_args, _internal_dict):
+    """Breakpoint python script for extracting TA load_biases and loading
+     corresponding ELF files with those load biases.
+
+    Set as the python-function for the trusty_thread_start breakpoint with:
+    breakpoint command add --python-function lldb_support.trusty_thread_start_breakpoint_callback
+    """
+    # The local variable "trusty_thread" should be available, however,
+    # when this breakpoint fires the variable is not found for the frame.
+    # Look at the parent frame for the trusty_app.
+    trusty_app = frame.get_parent_frame().var("trusty_app")
+    target = frame.thread.process.target
+
+    load_bias = trusty_app.GetChildMemberWithName(
+        "load_bias").GetValueAsUnsigned()
+    uuid_struct = trusty_app.GetChildMemberWithName(
+        "props").GetChildMemberWithName("uuid")
+
+    uuid = parse_uuid_struct(uuid_struct)
+
+    symbols_file_path = uuid_symbol_map.get(uuid)
+    if symbols_file_path is None:
+        print(f"Could not find symbols file for UUID {uuid}")
+        # Stop the debugger to allow the user to debug the issue.
+        return True
+
+    # Add the symbols for the TA.
+    module = target.AddModule(symbols_file_path, None, None)
+
+    symbols_file_name = os.path.basename(symbols_file_path)
+    print(f"Setting {symbols_file_name} entry point to {hex(load_bias)}")
+
+    # Set the module load address for the load_bias.
+    target.SetModuleLoadAddress(module, load_bias)
+
+    # Return False to not stop at this breakpoint.
+    return False
+
+
 def initialize_kernel_lldb_module(debugger, _command, _context, result,
                                   _internal_dict):
     print("Loading kernel ELF file", file=result)
