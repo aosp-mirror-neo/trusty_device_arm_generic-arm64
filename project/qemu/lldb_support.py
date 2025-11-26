@@ -1,3 +1,4 @@
+import lldb # type: ignore
 import os
 import re
 from glob import glob
@@ -183,16 +184,19 @@ def trusty_thread_start_breakpoint_callback(frame, _bp_loc, _extra_args, _intern
     return False
 
 
+@lldb.command()
 def initialize_kernel_lldb_module(debugger, _command, _context, result,
                                   _internal_dict):
     print("Loading kernel ELF file", file=result)
-    debugger.HandleCommand(f"file -a {ARCH_ID} {KERNEL_ELF_FILE}")
+
+    target = debugger.CreateTargetWithFileAndArch(KERNEL_ELF_FILE, ARCH_ID)
+    module = target.GetModuleAtIndex(0)
 
     print(
         f"Setting kernel ELF entry point to {hex(SEC_DRAM_BASE)}",
         file=result
     )
-    move_kernel_lldb_module(debugger, new_entry_point=SEC_DRAM_BASE)
+    set_lldb_module_address(target, module, SEC_DRAM_BASE)
 
 
 def relocate_kernel_hook(debugger, _command, context, result, _internal_dict):
@@ -254,6 +258,5 @@ def register_command(debugger, function):
 def __lldb_init_module(debugger, _internal_dict):
     init_symbols_file_map()
 
-    register_command(debugger, initialize_kernel_lldb_module)
     register_command(debugger, relocate_kernel_hook)
     register_command(debugger, trusty_thread_start_hook)
