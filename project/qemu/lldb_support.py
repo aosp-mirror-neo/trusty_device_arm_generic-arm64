@@ -164,6 +164,49 @@ def relocate_kernel_hook(debugger, _command, context, result, _internal_dict):
     debugger.HandleCommand("continue")
 
 
+def set_lldb_module_address(target, module, new_entry_point):
+    """Set the module's new entry point address.
+
+    Because LLDB only support sliding ELF entry points, not setting them, this
+    function finds the appropriate offset relative the current offset.
+    """
+    # Get the current kernel module address.
+    current_address = module.GetSectionAtIndex(0).GetFileAddress()
+    offset = lldb_module_offset(current_address, new_entry_point)
+    # Slide the address to the new offset.
+    target.SetModuleLoadAddress(module, offset)
+
+
+def relocate_kernel_breakpoint_callback(frame, _bp_loc, _extra_args, _internal_dict):
+    """Breakpoint triggered python script to adjust the kernel's base address for
+    the kernel relocation.
+
+    Set as the python-function for the relocate_kernel breakpoint with:
+    breakpoint command add --python-function lldb_support.relocate_kernel_breakpoint_callback
+    """
+    # When this breakpoint fires the variable new_base does not yet resolve.
+    # Try the x3 register for new_base when it does not resolve.
+    value = frame.FindVariable("new_base").value or frame.register['x3']
+    if value is None:
+        print("Unable to find new_base register!")
+        # Return True to have it break, allowing the user to debug the issue.
+        return True
+    new_base = value.unsigned
+
+    # Use the module of the breakpoint's frame.
+    # It is expected to be the kernel.
+    module = frame.module
+    target = frame.thread.process.target
+
+    print(f"Setting kernel ELF entry point to {hex(new_base)}")
+
+    # Set the module's current address to the new base address.
+    set_lldb_module_address(target, module, new_base)
+
+    # Return False to not stop at this breakpoint.
+    return False
+
+
 def register_command(debugger, function):
     fname = function.__name__
     debugger.HandleCommand(f"command script add -f {__name__}.{fname} {fname}")
