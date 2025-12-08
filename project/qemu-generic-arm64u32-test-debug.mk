@@ -20,6 +20,9 @@ QEMU_TRUSTY_PROJECT := generic-arm64-test-debug
 # D-cache lines are 64 bytes on QEMU arm64
 GLOBAL_DEFINES += CACHE_LINE=64
 
+# Disable TDP for one qemu build
+STORAGE_HAS_FS_TDP := false
+
 # Version checks are enforced by default. We override this to ensure that we
 # have at least one target to test that we can disable this enforcement.
 #

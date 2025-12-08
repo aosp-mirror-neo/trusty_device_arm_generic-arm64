@@ -21,8 +21,11 @@ KERNEL_BTI_ENABLED ?= true
 # D-cache lines are 64 bytes on QEMU arm64
 GLOBAL_DEFINES += CACHE_LINE=64
 
-# Disable TDP for one qemu build
-STORAGE_HAS_FS_TDP := false
+# Enable STORAGE_EXTERNAL_SUPER_BLOCK_MAC (without TP) for one qemu build
+SECURE_STORAGE_USE_TDP := true
+STORAGE_EXTERNAL_SUPER_BLOCK_MAC := trusty/user/app/storage/rpmb_super_block_mac
+STORAGE_HAS_RPMB := false
+STORAGE_USE_EARLY_TDP := true
 
 include project/debugging-inc.mk
 include project/qemu-inc.mk
