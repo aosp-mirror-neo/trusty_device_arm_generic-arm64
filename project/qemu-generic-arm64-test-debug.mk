@@ -27,5 +27,8 @@ STORAGE_EXTERNAL_SUPER_BLOCK_MAC := trusty/user/app/storage/rpmb_super_block_mac
 STORAGE_HAS_RPMB := false
 STORAGE_USE_EARLY_TDP := true
 
+# Disable STORAGE_SUPPORT_STAGE_DURING_UDC for one qemu build
+STORAGE_SUPPORT_STAGE_DURING_UDC := false
+
 include project/debugging-inc.mk
 include project/qemu-inc.mk
