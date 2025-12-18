@@ -1,3 +1,4 @@
+import lldb # type: ignore
 import os
 import re
 from glob import glob
@@ -13,17 +14,6 @@ TRUSTY_PROJECT = (
 KERNEL_ELF_FILE = f"{TRUSTY_PROJECT_FOLDER}/lk.elf"
 ADDR_SIZE_BITS = 64
 ARCH_ID = "aarch64"
-
-
-def kernel_entry_point(debugger):
-    """Finds the starting virtual address of the kernel.
-
-    Assumes the kernel is the first target loaded into the debugger.
-    """
-    target = debugger.GetTargetAtIndex(0)
-    module = target.GetModuleAtIndex(0)
-    section = module.GetSectionAtIndex(0)
-    return section.GetFileAddress()
 
 
 def lldb_module_offset(original_entry_point, new_entry_point):
@@ -45,15 +35,6 @@ def lldb_module_offset(original_entry_point, new_entry_point):
     return (
         (new_entry_point - original_entry_point) &
         ((1 << ADDR_SIZE_BITS) - 1)
-    )
-
-
-def move_kernel_lldb_module(debugger, new_entry_point):
-    original_entry_point = kernel_entry_point(debugger)
-    offset = lldb_module_offset(original_entry_point, new_entry_point)
-    lk_elf = os.path.basename(KERNEL_ELF_FILE)
-    debugger.HandleCommand(
-        f"target modules load -f {lk_elf} -s {hex(offset)}"
     )
 
 
@@ -116,13 +97,19 @@ def init_symbols_file_map():
         uuid_symbol_map[uuid] = symbol_path
 
 
-def trusty_thread_start_hook(debugger, _command, context, result,
-                             _internal_dict):
-    """Breakpoint command for extracting TA load_biases and loading
+def trusty_thread_start_breakpoint_callback(frame, _bp_loc, _extra_args, _internal_dict):
+    """Breakpoint python script for extracting TA load_biases and loading
      corresponding ELF files with those load biases.
+
+    Set as the python-function for the trusty_thread_start breakpoint with:
+    breakpoint command add --python-function lldb_support.trusty_thread_start_breakpoint_callback
     """
-    trusty_app = context.GetFrame().FindVariable(
-        "trusty_thread").GetChildMemberWithName("app")
+    # The local variable "trusty_thread" should be available, however,
+    # when this breakpoint fires the variable is not found for the frame.
+    # Look at the parent frame for the trusty_app.
+    trusty_app = frame.get_parent_frame().var("trusty_app")
+    target = frame.thread.process.target
+
     load_bias = trusty_app.GetChildMemberWithName(
         "load_bias").GetValueAsUnsigned()
     uuid_struct = trusty_app.GetChildMemberWithName(
@@ -132,46 +119,80 @@ def trusty_thread_start_hook(debugger, _command, context, result,
 
     symbols_file_path = uuid_symbol_map.get(uuid)
     if symbols_file_path is None:
-        print(f"Could not find symbols file for UUID {uuid}", file=result)
-        return
+        print(f"Could not find symbols file for UUID {uuid}")
+        # Stop the debugger to allow the user to debug the issue.
+        return True
 
-    debugger.HandleCommand(f"target modules add {symbols_file_path}")
+    # Add the symbols for the TA.
+    module = target.AddModule(symbols_file_path, None, None)
+
     symbols_file_name = os.path.basename(symbols_file_path)
     print(f"Setting {symbols_file_name} entry point to {hex(load_bias)}")
-    debugger.HandleCommand(
-        f"target modules load -f {symbols_file_name} -s {hex(load_bias)}"
-    )
-    debugger.HandleCommand("continue")
+
+    # Set the module load address for the load_bias.
+    target.SetModuleLoadAddress(module, load_bias)
+
+    # Return False to not stop at this breakpoint.
+    return False
 
 
+@lldb.command()
 def initialize_kernel_lldb_module(debugger, _command, _context, result,
                                   _internal_dict):
     print("Loading kernel ELF file", file=result)
-    debugger.HandleCommand(f"file -a {ARCH_ID} {KERNEL_ELF_FILE}")
+
+    target = debugger.CreateTargetWithFileAndArch(KERNEL_ELF_FILE, ARCH_ID)
+    module = target.GetModuleAtIndex(0)
 
     print(
         f"Setting kernel ELF entry point to {hex(SEC_DRAM_BASE)}",
         file=result
     )
-    move_kernel_lldb_module(debugger, new_entry_point=SEC_DRAM_BASE)
+    set_lldb_module_address(target, module, SEC_DRAM_BASE)
 
 
-def relocate_kernel_hook(debugger, _command, context, result, _internal_dict):
-    new_base = context.GetFrame().FindVariable("new_base").GetValueAsUnsigned()
+def set_lldb_module_address(target, module, new_entry_point):
+    """Set the module's new entry point address.
 
-    print(f"Setting kernel ELF entry point to {hex(new_base)}", file=result)
-    move_kernel_lldb_module(debugger, new_entry_point=new_base)
-    debugger.HandleCommand("continue")
+    Because LLDB only support sliding ELF entry points, not setting them, this
+    function finds the appropriate offset relative the current offset.
+    """
+    # Get the current kernel module address.
+    current_address = module.GetSectionAtIndex(0).GetFileAddress()
+    offset = lldb_module_offset(current_address, new_entry_point)
+    # Slide the address to the new offset.
+    target.SetModuleLoadAddress(module, offset)
 
 
-def register_command(debugger, function):
-    fname = function.__name__
-    debugger.HandleCommand(f"command script add -f {__name__}.{fname} {fname}")
+def relocate_kernel_breakpoint_callback(frame, _bp_loc, _extra_args, _internal_dict):
+    """Breakpoint triggered python script to adjust the kernel's base address for
+    the kernel relocation.
+
+    Set as the python-function for the relocate_kernel breakpoint with:
+    breakpoint command add --python-function lldb_support.relocate_kernel_breakpoint_callback
+    """
+    # When this breakpoint fires the variable new_base does not yet resolve.
+    # Try the x3 register for new_base when it does not resolve.
+    value = frame.FindVariable("new_base").value or frame.register['x3']
+    if value is None:
+        print("Unable to find new_base register!")
+        # Return True to have it break, allowing the user to debug the issue.
+        return True
+    new_base = value.unsigned
+
+    # Use the module of the breakpoint's frame.
+    # It is expected to be the kernel.
+    module = frame.module
+    target = frame.thread.process.target
+
+    print(f"Setting kernel ELF entry point to {hex(new_base)}")
+
+    # Set the module's current address to the new base address.
+    set_lldb_module_address(target, module, new_base)
+
+    # Return False to not stop at this breakpoint.
+    return False
 
 
 def __lldb_init_module(debugger, _internal_dict):
     init_symbols_file_map()
-
-    register_command(debugger, initialize_kernel_lldb_module)
-    register_command(debugger, relocate_kernel_hook)
-    register_command(debugger, trusty_thread_start_hook)
