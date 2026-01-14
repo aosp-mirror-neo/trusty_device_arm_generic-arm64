@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 
+USE_SYSTEM_BINDER ?= false
+
 include project/vm-arm-virt-inc.mk
 
 
