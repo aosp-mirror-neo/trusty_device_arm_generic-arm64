@@ -24,7 +24,9 @@ WITH_FAKE_HWRNG ?= false
 WITH_FAKE_HWKEY ?= false
 WITH_FAKE_KEYBOX ?= false
 
-USE_SYSTEM_BINDER := true
+# By default, Trusty VMs will use system binder.
+# This can be overridden for vendor VMs.
+USE_SYSTEM_BINDER ?= true
 
 # This keeps trusty is VMs in sync with the latest
 # Android Profile for DICE. This is required since
