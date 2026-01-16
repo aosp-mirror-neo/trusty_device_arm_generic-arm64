@@ -51,3 +51,6 @@ ARM_SMCCC_CONDUIT_IS_HVC := true
 VSOCK_WITH_VIRTIO_MSG_DRIVER ?= true
 
 VSOCK_WITH_VIRTIO_PCI_DRIVER ?= true
+
+# Add the module that uses PSCI to boot the secondary CPUs
+MODULES += trusty/kernel/lib/psci_boot

@@ -24,6 +24,9 @@ APPLOADER_ALLOW_NS_CONNECT := true
 # Include Secretkeeper TA
 SECRETKEEPER_ENABLED := true
 
+# Storage TA build options defaults
+STORAGE_SUPPORT_STAGE_DURING_UDC ?= true
+
 # All qemu-generic-arm64* builds default to SPMC_EL=3
 # while the arm32 builds use the SPD because both
 # Hafnium and EL3 SPMC only support AArch64.
