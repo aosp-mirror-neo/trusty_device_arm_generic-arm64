@@ -29,8 +29,8 @@ WITH_TRUSTY_VIRTIO_IPC_DEV := false
 GENERIC_ARM64_DEBUG := UART
 
 GIC_VERSION := 3
-# TODO(b/383197438): Disable SMP until we have code to enable secondary CPUs
-SMP_MAX_CPUS := 1
+# One CPU per VM by default, each VM can override this if needed
+SMP_MAX_CPUS ?= 1
 GLOBAL_DEFINES += ARM_GIC_SELECTED_IRQ_GROUP=GRP1NS
 TIMER_ARM_GENERIC_SELECTED ?= CNTV
 

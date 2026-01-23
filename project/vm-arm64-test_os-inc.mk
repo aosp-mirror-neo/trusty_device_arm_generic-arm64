@@ -13,6 +13,9 @@
 # limitations under the License.
 #
 
+# Enable SMP on the test VMs for testing
+SMP_MAX_CPUS := 4
+
 # the test_os VM is expected to be used for Trusty OS testing
 # as well as SEE HAL testing in standalone (i.e. with local SEE HAL services).
 #
