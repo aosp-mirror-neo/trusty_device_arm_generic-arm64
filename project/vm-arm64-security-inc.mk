@@ -30,6 +30,9 @@ TRUSTY_VM_INCLUDE_KEYMINT ?= true
 TRUSTY_VM_INCLUDE_GATEKEEPER_WITH_THAL ?= true
 TRUSTY_VM_INCLUDE_GATEKEEPER ?= true
 
+# enable secureclock target port
+TRUSTY_VM_INCLUDE_SECURECLOCK_SERVICE ?= true
+
 # Trusted HAL for hardware crypto key and secure storage in KeyMint
 KEYMINT_WITH_TRUSTED_HAL ?= true
 
