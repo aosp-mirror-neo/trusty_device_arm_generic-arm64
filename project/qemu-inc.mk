@@ -251,6 +251,10 @@ else ifneq (,$(ANDROID_BUILD_TOP))
 # We are building Trusty inside an Android environment,
 # which means we can use a fresh Android build instead of prebuilts
 ANDROID_OUT_SRC_DIR := $(ANDROID_BUILD_TOP)
+# If we are using a full android environment we will need to process the ramdisk
+# file to also include dev noders. The ramdisk_node_list file is copied to the
+# same ramdisk directory in this case.
+ANDROID_RAMDISK_NODELIST_FILE := ramdisk_node_list
 $(info Using android ANDROID_BUILD_TOP at $(ANDROID_BUILD_TOP))
 else
 # Use unpacked prebuilt out dir if build artifacts are not specified and
