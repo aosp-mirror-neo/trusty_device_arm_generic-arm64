@@ -15,6 +15,10 @@
 
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+# Set the API level to 202604 by default. authmgr-be tests need the api level
+# to be set to 202604 or higher.
+TRUSTY_API_LEVEL ?= 202604
+
 DEBUG ?= 2
 SMP_MAX_CPUS ?= 8
 SMP_CPU_CLUSTER_SHIFT ?= 2
