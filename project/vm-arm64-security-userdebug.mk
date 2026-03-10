@@ -14,7 +14,7 @@
 #
 
 # debug build
-DEBUG ?= 2
+DEBUG := 4
 UBSAN_ENABLED ?= true
 RELEASE_BUILD ?= false
 LOG_LEVEL_KERNEL_RUST ?= 2
