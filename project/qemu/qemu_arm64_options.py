@@ -87,7 +87,7 @@ class QemuArm64Options(object):
         "-nographic", "-no-reboot",
         "-cpu", "max,sve=off,pauth=off",
         "-smp", "4",
-        "-m", "1024",
+        "-m", "2048",
         "-d", "unimp",
         "-semihosting-config", "enable=on,target=native",
         "-machine", "acpi=off",
